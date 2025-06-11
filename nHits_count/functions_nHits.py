@@ -22,21 +22,27 @@ def fun_window(tree, bin_hits, event_number, prompt_time):
 
         hits = np.concatenate((hits, hits_extra)) 
 
-    filtered_hits = hits[(hits > prompt_time) & (hits < prompt_time + window_tot)]
+    filtered_hits = hits[(hits >= prompt_time) & (hits <= prompt_time + window_tot)]
 
-    adjusted_counts = filtered_hits - prompt_time #cuidado prompt_time tiene que ser multiple de bins? sino calcular bin y restarle? dudas
+    adjusted_counts = filtered_hits - prompt_time #cuidado prompt_time(1500) tiene que ser multiple de bins? sino calcular bin y restarle? dudas
 
     # Luego llamas a la función con esos counts ajustados
     nHits = count_nHits(adjusted_counts, bin_hits, nHits)
+    n = 0
 
-    #print(nHits)
-    for i in range(11):
-        if nHits[0]<100:
+    for i in range(int(1500/bin_hits)):
+        
+        if nHits[0]<(0.2*bin_hits): #esto se tiene ajustar al bin tmb
             nHits = np.delete(nHits, 0)
             nHits = np.append(nHits, [0])
-            """WARNING: estic posant el ultims valors buits, nomes pk totes les arrays tinguin el mateix tamany, es podria arreglar
-            pero considero no necesari la diferencia de 1500ns que pot haver-hi entre uns events i altres"""
+            n += 1
         else:
+            if n != 0:
+                print(f"[INFO] {n} bins removed from the beginning of the histogram for event {event_number}")
+                new_hits = hits[(hits > prompt_time + window_tot) & (hits <= prompt_time + window_tot + n*bin_hits)]
+                adjusted_new_counts = new_hits - (prompt_time + n*bin_hits)
+                nHits = count_nHits(adjusted_new_counts, bin_hits, nHits)
+                
             #print("time prompt: ", prompt_time + i*bin_hits)
             return nHits, times_array
     print(f"warning, no hi ha pic a les primeres bins, check {event_number}")
@@ -53,7 +59,7 @@ def count_nHits(counts, bin_hist, histogram):
             div[i] += 1
 
     for n in div:
-            histogram[int(n)-1] +=1
+        histogram[int(n)-1] +=1
 
     return histogram
 
@@ -65,6 +71,7 @@ def filter_neighbor(df, n):
     keep_mask = np.ones(len(df), dtype=bool)  # asumimos todos True inicialmente
     cols = df.drop(columns=['idxmax', 'event_number', 'max_value']).columns
     cols_int = set(cols.astype(int))
+    
 
     for i, row in df.iterrows():
         t_max = row["idxmax"]  # tiempo del máximo
@@ -76,25 +83,25 @@ def filter_neighbor(df, n):
         vecinos_validos = [str(int(v)) for v in vecinos if v in cols_int]
         
         if (row[vecinos_validos] > 300).any():
-            print(f"Evento {i} descartado por vecinos con valor > 300.")
+            print(f"Evento {int(row['event_number'])} descartado por vecinos con valor > 300.")
             keep_mask[i] = False
             continue 
 
         if t_max+n*1500>270000 and i + 1 < len(df):
-            print(f"Evento {i}, accediendo valores evento {i+1}")
+            print(f"Evento {int(row['event_number'])}, accediendo valores evento {int(row['event_number'])+1}")
             up_vecinos = np.arange(0, (t_max+n*1500 - 270000)+1, 1500)
             vecinos_validos_up = [str(int(v)) for v in up_vecinos if v in cols_int]
             if (df.loc[i + 1, vecinos_validos_up] > 300).any():
-                print(f"Evento {i} descartado por vecinos superior con valor > 300.")
+                print(f"Evento {int(row['event_number'])} descartado por vecinos superior con valor > 300.")
                 keep_mask[i] = False
                 continue
 
         elif t_max-n*1500<0 and i - 1 >= 0:
-            print(f"Evento {i}, accediendo valores evento {i-1}")
+            print(f"Evento {int(row['event_number'])}, accediendo valores evento {int(row['event_number'])-1}")
             down_vecinos = np.arange(270000 + t_max-n*1500, 27000+1, 1500)
             vecinos_validos_down = [str(int(v)) for v in down_vecinos if v in cols_int]
             if (df.loc[i -1, vecinos_validos_down] > 300).any():
-                print(f"Evento {i} descartado por vecinos inferior con valor > 300.")
+                print(f"Evento {int(row['event_number'])} descartado por vecinos inferior con valor > 300.")
                 keep_mask[i] = False
                 continue
  

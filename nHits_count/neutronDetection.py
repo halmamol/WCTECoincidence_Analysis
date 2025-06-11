@@ -44,7 +44,8 @@ for event, time in zip(events_prompt, times_prompt):
 
     if len(filtered_indices)!=0:
 
-        Delta_t.append(filtered_times.max())
+        #Delta_t.append(filtered_times)
+        Delta_t.extend(filtered_times)
         print("Índices > 15:", len(filtered_indices), "in time", filtered_times)
         i+=1
 
@@ -56,7 +57,7 @@ DeltaT = np.arange(0, 100, 1)
 histogram_DeltaT = functions_nHits.count_nHits(np.array(Delta_t), bin_t, np.zeros((len(DeltaT))))
 
 plt.figure()
-plt.plot(DeltaT, histogram_DeltaT)
+plt.bar(DeltaT, histogram_DeltaT, width=1, align = "edge", edgecolor="navy")
 plt.xlabel(r"$\Delta t$ ($\mu$s)")
 plt.ylabel("Cantidad de eventos")
 plt.title(fr"Histograma de $\Delta t$ para partición {Partition}")

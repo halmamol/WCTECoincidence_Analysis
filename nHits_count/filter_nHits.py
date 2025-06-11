@@ -36,7 +36,7 @@ df_prompt = df[(df["max_value"] >= 300) & (df["max_value"] <= 700)].copy()
 df_prompt["idxmax"] = df_prompt.drop(columns=['event_number', 'max_value']).idxmax(axis=1).astype(int)
 
 #filtro para que el pico sea limpio - no hay picos en 15000ns cercanos
-df_prompt = functions_nHits.filter_neighbor(df_prompt, 50)
+df_prompt = functions_nHits.filter_neighbor(df_prompt, 1)
 num_filas = df_prompt.shape[0]
 
 print("Número de posibles eventos - pico entre 300 y 700 nHits y sin otros picos en 15000 ns al rededor:", num_filas)
