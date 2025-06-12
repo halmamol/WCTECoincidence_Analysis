@@ -9,7 +9,7 @@ def fun_window(tree, bin_hits, event_number, prompt_time):
     times_array = np.arange(0, window_tot+1, bin_hits, dtype=int)
     nHits = np.zeros(len(times_array))
 
-    times_branch = tree["hit_pmt_times"].array(library="np")
+    times_branch = tree["hit_pmt_calibrated_times"].array(library="np")
     hits = times_branch[event_number]
 
     if (prompt_time+window_tot) >= 270000:
