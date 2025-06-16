@@ -52,14 +52,9 @@ def fun_window(tree, bin_hits, event_number, prompt_time):
 def count_nHits(counts, bin_hist, histogram):
 
     div = counts//bin_hist 
-    res = counts%bin_hist 
-
-    for i, res_value in enumerate(res):
-        if res_value != 0:
-            div[i] += 1
-
+  
     for n in div:
-        histogram[int(n)-1] +=1
+        histogram[int(n)] +=1
 
     return histogram
 
