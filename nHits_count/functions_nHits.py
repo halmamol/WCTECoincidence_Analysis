@@ -56,7 +56,7 @@ def count_nHits(counts, bin_hist, histogram):
     for n in div:
         histogram[int(n)] +=1
 
-    return histogram
+    return histogram.astype(int)
 
 def filter_neighbor(df, n):
     """aqui filtramos para que no haya ningun pico cercano alto"""
