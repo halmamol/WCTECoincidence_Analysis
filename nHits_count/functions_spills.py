@@ -3,11 +3,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd  
 
-def spill_nHitsTT(times_branch_event_arg, threshold):
+def spill_nHitsTT(times_branch_event_arg, threshold, charge_branch_event_arg = None):
     times_branch_event = np.sort(times_branch_event_arg.copy()) #just to make sure, but it is supposed to be sorted
 
     if times_branch_event[0]!=times_branch_event_arg[0]:
         print("hey Carla, the intial list was not sorted : WARNING")
+
+    if charge_branch_event_arg is not None:
+        charge_branch_event = np.array(charge_branch_event_arg).copy()
+    else:
+        charge_branch_event = None
+
     threshold_times = []
 
     i = 0
@@ -27,6 +33,9 @@ def spill_nHitsTT(times_branch_event_arg, threshold):
             times_branch_event = times_branch_event[~mask_2]
             n = len(times_branch_event)
 
+            if charge_branch_event is not None:
+                charge_branch_event = charge_branch_event[~mask_2]
+
             # Jump ahead by 100 units
             i += 1
             while i < n and times_branch_event[i] < time_hit + 100:
@@ -34,7 +43,8 @@ def spill_nHitsTT(times_branch_event_arg, threshold):
         else:
             i += 1
 
-    return times_branch_event, threshold_times
+    return times_branch_event, threshold_times, charge_branch_event
+
 
 def spill_ChargeTT(charge_branch_event_arg, times_branch_event_arg, threshold):
     
@@ -48,9 +58,9 @@ def spill_ChargeTT(charge_branch_event_arg, times_branch_event_arg, threshold):
     while i < n:
         time_hit = times_branch_event[i]
         mask = (times_branch_event >= time_hit) & (times_branch_event < time_hit + 50)
-        charge_sum = charge_branch_event[mask].sum()
+        charge_max = max(charge_branch_event[mask])
         
-        if charge_sum > threshold:
+        if charge_max > threshold:
             threshold_times.append(time_hit)
 
             # Zero out the next 50ns after the hit window
@@ -103,19 +113,24 @@ def plot_TotalCharge_Time(time, charge, bin_time):
     return sum_charges
 
 
-def repeat_spills_nHits(event_number_branch, times_branch_sorted, threshold = 5):
+def repeat_spills_nHits(event_number_branch, times_branch_sorted, threshold = 5 ,charge_branch_sorted = None):
     threshold_times = {}
     times_branch_modified = []
+    charge_branch_modified = []
 
     for event in event_number_branch:
         remaining_times = times_branch_sorted[event].copy()
         all_thresholds = []
+        if charge_branch_sorted is not None:
+            remaining_charges = charge_branch_sorted[event].copy()
+        else:
+            remaining_charges = None
 
         pass_counter = 0  # Count how many times the function is applied
 
         # Repeat spill_nHitsTT until no more triggers are found
         while True:
-            remaining_times, new_triggers = spill_nHitsTT(remaining_times, threshold)
+            remaining_times, new_triggers, remaining_charges = spill_nHitsTT(remaining_times, threshold, remaining_charges)
             
             if not new_triggers:
                 break
@@ -126,13 +141,14 @@ def repeat_spills_nHits(event_number_branch, times_branch_sorted, threshold = 5)
         if pass_counter > 1:
             print(f"Event {event}: spill_nHitsTT applied {pass_counter} times")
 
-
         times_branch_modified.append(remaining_times)
+        if remaining_charges is not None:
+            charge_branch_modified.append(remaining_charges)
 
         if all_thresholds:
             threshold_times[event] = all_thresholds
 
-    return times_branch_modified, threshold_times
+    return times_branch_modified, threshold_times, charge_branch_modified if charge_branch_sorted is not None else None
 
 def repeat_spills_Charge(event_number_branch, times_branch_sorted, charge_branch_sorted, threshold = 5000):
     threshold_charges = {}
