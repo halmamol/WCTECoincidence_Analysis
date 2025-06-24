@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import awkward as ak
 
-def spill_nHitsTT(times_branch_event_arg, threshold, window, death_window, charge_branch_event = []):
+def spill_nHitsTT(times_branch_event_arg, threshold, window, death_window, charge_branch_event = [], total = False):
     times_branch_event = np.sort(times_branch_event_arg.copy()) #just to make sure, but it is supposed to be sorted
 
     if times_branch_event[0]!=times_branch_event_arg[0]:
@@ -166,15 +166,21 @@ def plot_TotalCharge_Time(time, charge, bin_time, total_time):
 
 
 def time_RMS_fun(times_event, window):
-    RMS_list = []
 
-    for time in np.arange(0, 270000 + 1, window):
-        mask = (times_event >= time) & (times_event < time + window)
+    RMS_list = []
+    n = len(times_event)
+    i = 0
+    
+    while i <n:
+        t_in = times_event[i]
+        mask = (times_event >= t_in) & (times_event < t_in + window)
         times_bin = times_event[mask]
 
+        i = np.searchsorted(times_event, t_in + window, side='left')
+
         N = len(times_bin)
-        if N == 0:
-            RMS_list.append(np.nan)  # or np.nan if you prefer
+        if N == 0 or N==1:  #salen t_RMS bajos pero es mentira, no tiene ningun significado la rms de un unico valor, los evito
+            RMS_list.append(np.nan)  
             continue
 
         mean_t = times_bin.mean()
@@ -262,3 +268,21 @@ def delete_indices_list(list_to_delete, indices):
         new_list.append(np.array(filtered_list))
 
     return new_list
+
+def counting_nHits_window(event_number_branch, times_branch, bin_window):
+    nHits = []
+
+    for event_number in event_number_branch:
+        times_branch_event = times_branch[event_number]
+        n = len(times_branch_event)
+        i=0
+
+        while i<n:
+            
+            t_in = times_branch_event[i]
+            mask = (times_branch_event >= t_in) & (times_branch_event < t_in + bin_window)
+            count = mask.sum()
+            nHits.append(count)
+            i = np.searchsorted(times_branch_event, t_in + bin_window, side='left')
+
+    return nHits
