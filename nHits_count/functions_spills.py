@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import awkward as ak
 
-def spill_nHitsTT(times_branch_event_arg, threshold, window, death_window, charge_branch_event = [], total = False):
+def spill_nHitsTT(times_branch_event_arg, threshold_inf, window, death_window, charge_branch_event = [], total = False, threshold_sup = np.inf):
     times_branch_event = np.sort(times_branch_event_arg.copy()) #just to make sure, but it is supposed to be sorted
 
     if times_branch_event[0]!=times_branch_event_arg[0]:
@@ -27,7 +27,7 @@ def spill_nHitsTT(times_branch_event_arg, threshold, window, death_window, charg
             count = mask.sum()
 
 
-        if count > threshold:
+        if count > threshold_inf and count<threshold_sup:
             threshold_times.append(time_hit)
 
             # Zero out the next death window ns after the hit window
@@ -236,7 +236,7 @@ def initial_treatment(tree):
     corrected_times = times_branch_clean - corrections
 
     # Ordenar los tiempos por evento y obtener los índices
-    sorted_idx = ak.argsort(times_branch_clean, axis=1)
+    sorted_idx = ak.argsort(corrected_times, axis=1)
 
     # Usar los índices para reordenar todos los branches
     times_sorted_TOF = corrected_times[sorted_idx]
@@ -286,3 +286,42 @@ def counting_nHits_window(event_number_branch, times_branch, bin_window):
             i = np.searchsorted(times_branch_event, t_in + bin_window, side='left')
 
     return nHits
+
+def prompt_candidates(event_branch, times_branch_arg, window_sliding, window_clean, threshold_inf, threshold_sup):
+
+    def prompt_candidates_event(event, times_branch_event_arg, window_sliding, window_clean, threshold_inf, threshold_sup):
+        valid_thresholds= []
+        threshold_list, _ = spill_nHitsTT(times_branch_event_arg, threshold_inf, window_sliding, 0, threshold_sup = threshold_sup)
+
+        for time_prompt in threshold_list:
+
+            mask_clean_1 = (times_branch_event_arg >= time_prompt - window_clean) & (times_branch_event_arg < time_prompt)
+            mask_clean_2 = (times_branch_event_arg > time_prompt + window_sliding) & (times_branch_event_arg < time_prompt + window_sliding + window_clean)
+            
+            if mask_clean_1.sum() != 0 :
+                clean_list, _ = spill_nHitsTT(times_branch_event_arg[mask_clean_1], threshold_inf, window_sliding, 0, threshold_sup=threshold_sup)
+            else:
+                clean_list = []
+            
+            if mask_clean_2.sum() != 0 :
+                clean_list_2, _ = spill_nHitsTT(times_branch_event_arg[mask_clean_2], threshold_inf, window_sliding, 0, threshold_sup=threshold_sup)
+            else:
+                clean_list_2 = []
+
+            if len(clean_list) + len(clean_list_2) == 0:
+                valid_thresholds.append(time_prompt)
+            else:
+                
+                print(f"Not using trigger {time_prompt} because it has other signal_candidate too close in event {event}") 
+
+        return valid_thresholds
+    
+    theshold_times = {}
+    
+    for event in event_branch:
+        threshold_times_event = prompt_candidates_event(event, times_branch_arg[event], window_sliding, window_clean, threshold_inf, threshold_sup)
+        
+        if len(threshold_times_event)!=0:
+            theshold_times[event] = threshold_times_event
+
+    return theshold_times
