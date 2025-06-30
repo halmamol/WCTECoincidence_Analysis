@@ -1,0 +1,327 @@
+print("Iniciando el script de detección de neutrones...")
+print("Importando librerias necesarias...")
+
+import uproot
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import functions_spills
+import glob
+import os
+
+# Background data download ###################################################################################
+
+print("Cargando datos de bkg...")
+root_dir_bkg = "/data/cgarcia_2002/WCTE/data/2384_calib_time/"
+root_files_bkg = sorted(glob.glob(os.path.join(root_dir_bkg, "*.root")))
+
+print(f"Found {len(root_files_bkg)} background ROOT files.")
+
+times_branch_sorted = []
+times_branch_sorted_TOF = []
+charge_branch_sorted = []
+mpmt_id_branch_sorted = []
+event_number_branch = []
+
+
+# Contador global de eventos
+event_offset = 0
+
+for file_path in root_files_bkg:
+    print(f"Procesando archivo: {file_path}")
+    file = uproot.open(file_path)
+    tree = file["WCTEReadoutWindows"]
+
+    times_branch_sorted_i, times_branch_sorted_TOF_i, charge_branch_sorted_i, mpmt_id_branch_sorted_i, event_number_branch_i = functions_spills.initial_treatment(tree)
+
+    # Ajustar los event_numbers con offset para que no se repitan
+    new_event_numbers = [i + event_offset for i in event_number_branch_i]
+
+    times_branch_sorted.extend(times_branch_sorted_i)
+    times_branch_sorted_TOF.extend(times_branch_sorted_TOF_i)
+    charge_branch_sorted.extend(charge_branch_sorted_i)
+    mpmt_id_branch_sorted.extend(mpmt_id_branch_sorted_i)
+    event_number_branch.extend(new_event_numbers)
+
+    # Actualizar offset para el siguiente archivo
+    event_offset += tree.num_entries
+
+print("Datos de background cargados.")
+N_events = max(event_number_branch) + 1
+print(f"Número total de eventos en background: {N_events}")
+#Signal data download #############################################################################################
+
+print("Cargando datos de signal...")
+root_dir_sig = "/data/cgarcia_2002/WCTE/data/2385_calib_time/"
+root_files_sig = sorted(glob.glob(os.path.join(root_dir_sig, "*.root")))
+
+print(f"Found {len(root_files_sig)} signal ROOT files.")
+
+times_branch_sorted_sig = []
+times_branch_sorted_TOF_sig = []
+charge_branch_sorted_sig = []
+mpmt_id_branch_sorted_sig = []
+event_number_branch_sig = []
+
+# Contador global de eventos
+event_offset = 0
+
+for file_path in root_files_sig:
+    print(f"Procesando archivo: {file_path}")
+    file = uproot.open(file_path)
+    tree = file["WCTEReadoutWindows"]
+
+    times_branch_sorted_i, times_branch_sorted_TOF_i, charge_branch_sorted_i, mpmt_id_branch_sorted_i, event_number_branch_i = functions_spills.initial_treatment(tree)
+    # Ajustar los event_numbers con offset para que no se repitan
+    new_event_numbers = [i + event_offset for i in event_number_branch_i]
+
+    times_branch_sorted_sig.extend(times_branch_sorted_i)
+    times_branch_sorted_TOF_sig.extend(times_branch_sorted_TOF_i)
+    charge_branch_sorted_sig.extend(charge_branch_sorted_i)
+    mpmt_id_branch_sorted_sig.extend(mpmt_id_branch_sorted_i)
+    event_number_branch_sig.extend(new_event_numbers)
+
+    # Actualizar offset para el siguiente archivo
+    event_offset += tree.num_entries
+
+print("Datos de signal cargados.")
+N_events_sig = max(event_number_branch_sig) + 1
+print(f"Número total de eventos en signal: {N_events_sig}")
+
+# Filter spills using nHits threshold ###################################################################################
+
+print("Aplicando filtro por nHits para fondo...")
+times_branch_modified, threshold_times, deleted_index_dict = functions_spills.repeat_spills_nHits(event_number_branch, times_branch_sorted_TOF, 300, 5000, 5000)
+print("Aplicando filtro por nHits para señal...")
+times_branch_modified_sig, threshold_times_sig, deleted_index_dict_sig = functions_spills.repeat_spills_nHits(event_number_branch_sig, times_branch_sorted_TOF_sig, 300, 5000, 5000)
+
+charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_sorted, deleted_index_dict)
+charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_sorted_sig, deleted_index_dict_sig)
+print("Filtros por nHits aplicados.")
+
+#Filter spills using charge threshold #############################################################################################
+
+print("Aplicando filtro por carga para fondo...")
+times_branch_modified_chargesTT, charge_branch_modified_chargesTT, threshold_charges, deleted_indices = functions_spills.repeat_spills_Charge(event_number_branch, times_branch_modified, charge_branch_filtered, 50, 5000, threshold = 5000)
+print("Aplicando filtro por carga para señal...")
+times_branch_modified_chargesTT_sig, charge_branch_modified_chargesTT_sig, threshold_charges_sig, deleted_indices_sig = functions_spills.repeat_spills_Charge(event_number_branch_sig, times_branch_modified_sig, charge_branch_filtered_sig, 50, 5000, threshold = 5000)
+print("Filtros por carga aplicados.")
+
+#Plot filtered data #################################################################################################
+
+print("Generando histogramas antes y después del filtrado...")
+nDetections_event_in = []
+nDetections_event_fin = []
+
+nDetections_event_in_sig = []
+nDetections_event_fin_sig = []
+
+for x in times_branch_sorted_TOF:
+    nDetections_event_in.append(len(x))
+
+for x in times_branch_modified_chargesTT:
+    nDetections_event_fin.append(len(x))
+
+for x in times_branch_sorted_TOF_sig:
+    nDetections_event_in_sig.append(len(x))
+
+for x in times_branch_modified_chargesTT_sig:
+    nDetections_event_fin_sig.append(len(x))
+
+n_bins = 50
+
+hist_in, bin_edges = np.histogram(nDetections_event_in, bins=n_bins)
+hist_in_sig, _ = np.histogram(nDetections_event_in_sig, bins=bin_edges)  # usa los mismos bordes
+
+hist_filtered, _ = np.histogram(nDetections_event_fin, bins = bin_edges)
+hist_filtered_sig, _ = np.histogram(nDetections_event_fin_sig, bins = bin_edges)
+
+plt.figure(figsize=(10, 6), facecolor='white')
+plt.fill_between(bin_edges[:-1], hist_filtered / N_events, hatch='\\\\\\\\', step='post', color='white', edgecolor='red', alpha=0.55, label='Bkg (after filter)')
+plt.fill_between(bin_edges[:-1], hist_filtered_sig / N_events_sig, hatch='\\\\\\\\', step='post', color='white', edgecolor='blue', alpha=0.55, label='Signal (after filter)')
+plt.step(bin_edges[:-1], hist_in_sig / N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Signal (before filter)')
+plt.step(bin_edges[:-1], hist_in / N_events, where='post', color='crimson', linestyle='-', linewidth=1.5, label='Bkg (before filter)')
+plt.legend()
+plt.xlabel('Number of Hits')
+plt.ylabel('Fraction of Events (normalized)')
+plt.title('Histograms Before and After Filtering')
+plt.tight_layout()
+plt.xlim(500, 3500)
+plt.savefig("/home/cgarcia_2002/nHits_count/plots_neutronDetection/Comparision_SigBkg_Filtering.png")
+
+
+bin_window = 4000
+
+nHits_tot = functions_spills.counting_nHits_window(event_number_branch, times_branch_modified_chargesTT, bin_window)
+nHits_in = functions_spills.counting_nHits_window(event_number_branch, times_branch_sorted_TOF, bin_window)
+
+nHits_tot_sig = functions_spills.counting_nHits_window(event_number_branch_sig, times_branch_modified_chargesTT_sig, bin_window)
+nHits_in_sig = functions_spills.counting_nHits_window(event_number_branch_sig, times_branch_sorted_TOF_sig, bin_window)
+
+hist_in, bin_edges = np.histogram(nHits_in, bins=100, range=(0, 500))
+hist_in_sig, _ = np.histogram(nHits_in_sig, bins=bin_edges)  # usa los mismos bordes
+
+hist_filtered, _ = np.histogram(nHits_tot, bins = bin_edges)
+hist_filtered_sig, _ = np.histogram(nHits_tot_sig, bins = bin_edges)
+
+n_windows_ev = 270000 / bin_window
+
+fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
+
+# Top plot: Background and Signal
+axs[0].step(bin_edges[:-1], hist_in / (N_events * n_windows_ev), linewidth = 1, where='post', label='bkg', color='red')
+axs[0].step(bin_edges[:-1], hist_in_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='signal', color='blue')
+
+axs[0].set_ylabel("Fraction of windows")
+axs[0].set_xlabel(f"hits in {bin_window} ns")
+axs[0].set_title("Initial data")
+axs[0].set_yscale('log')
+axs[0].legend()
+
+# Bottom plot: Signal/Background Ratio
+ratio = np.divide(
+    hist_in_sig / (N_events_sig * n_windows_ev),
+    hist_in / (N_events * n_windows_ev),
+    out=np.full_like(hist_in, 0, dtype=float),
+    where=hist_in > 0)
+axs[1].step(bin_edges[:-1], ratio, linewidth = 1, where='post', color='green', label='Signal / Background')
+axs[1].set_xlabel(f"hits in {bin_window} ns")
+axs[1].set_ylabel("S/B ratio")
+axs[1].legend()
+plt.tight_layout()
+plt.savefig("/home/cgarcia_2002/nHits_count/plots_neutronDetection/Comparision_SigBkg_Windows_BeforeFiltering.png")
+
+fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
+
+# Top plot: Background and Signal
+axs[0].step(bin_edges[:-1], hist_filtered / (N_events * n_windows_ev), linewidth = 1, where='post', label='bkg', color='red')
+axs[0].step(bin_edges[:-1], hist_filtered_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='signal', color='blue')
+axs[0].set_ylabel("Fraction of windows")
+axs[0].set_xlabel(f"hits in {bin_window} ns")
+axs[0].set_title("After Filtering total data")
+axs[0].set_yscale('log')
+axs[0].legend()
+
+# Bottom plot: Signal/Background Ratio
+ratio_2 = np.divide(
+    hist_filtered_sig / (N_events_sig * n_windows_ev),
+    hist_filtered / (N_events * n_windows_ev),
+    out=np.full_like(hist_filtered, 0, dtype=float),
+    where=hist_filtered > 0)
+axs[1].step(bin_edges[:-1], ratio_2, linewidth = 1, where='post', color='green', label='Signal / Background')
+axs[1].set_xlabel(f"hits in {bin_window} ns")
+axs[1].set_ylabel("S/B ratio")
+axs[1].legend()
+plt.tight_layout()
+plt.savefig("/home/cgarcia_2002/nHits_count/plots_neutronDetection/Comparision_SigBkg_Windows_AfterFiltering.png")
+
+print("Histogramas guardados.")
+
+# Prompt candidates detection ###########################################################################################################
+
+print("Buscando candidatos prompt...")
+threshold_times_50 = functions_spills.prompt_candidates(event_number_branch, times_branch_modified_chargesTT, 100, 200, 10, 50)
+threshold_times_50_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_modified_chargesTT_sig, 100, 200, 10, 50)
+print("Candidatos prompt encontrados.")
+
+window_ns = 100
+
+times_branch_sup5 = []
+for event in event_number_branch:
+
+    if event in threshold_times_50.keys():
+    
+        all_hits = [t for ref_time in threshold_times_50[event]
+            for t in times_branch_modified_chargesTT[event]
+            if ref_time <= t <= ref_time + window_ns]
+    else:
+        all_hits = []
+    
+    times_branch_sup5.append(np.array(all_hits))
+
+times_branch_sup5_sig = []
+for event in event_number_branch_sig:
+    if event in  threshold_times_50_sig.keys():
+
+        all_hits = [t for ref_time in threshold_times_50_sig[event]
+            for t in times_branch_modified_chargesTT_sig[event]
+            if ref_time <= t <= ref_time + window_ns]
+    else:
+        all_hits= []
+    times_branch_sup5_sig.append(np.array(all_hits))
+
+# Neutron detection ###########################################################################################################
+
+print("Detectando neutrones en fondo...")
+neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_modified_chargesTT,  threshold_times_50, 100000, 100, 10, 30)
+print("Detectando neutrones en señal...")
+neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_modified_chargesTT_sig,  threshold_times_50_sig, 100000, 100, 10, 30)
+
+print("Prompt candidates background", sum(len(v) for v in threshold_times_50.values()))
+print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
+
+print("Prompt candidates signal", sum(len(v) for v in threshold_times_50_sig.values()))
+print("Neutron candidates signal", sum(len(v) for v in neutron_dict_sig.values()))
+
+# Delta T calculation ###########################################################################################################
+
+print("Calculando Delta T entre prompt y neutrones...")
+
+deltaT = []
+for event_number in neutron_dict:
+    for start_time in neutron_dict[event_number]:
+        neutron_times = neutron_dict[event_number][start_time]
+        deltaT.append(min(neutron_times) - start_time)
+
+deltaT_sig = []
+for event_number in neutron_dict_sig:
+    for start_time in neutron_dict_sig[event_number]:
+        neutron_times = neutron_dict_sig[event_number][start_time]
+        deltaT_sig.append(min(neutron_times) - start_time)
+
+
+hist, bins_edges = np.histogram(deltaT, bins=100, range=(0, 10000))
+hist_sig, _ = np.histogram(deltaT_sig, bins=bins_edges, range=(0, 10000))
+
+plt.figure(figsize=(8, 4))
+
+plt.step(bins_edges[:-1], hist/N_events, where='post', linewidth=1, label='bkg', color='red')
+plt.step(bins_edges[:-1], hist_sig/N_events_sig, where='post', linewidth=1, label='signal', color='blue')
+plt.xlabel('Delta T (ns)')
+plt.ylabel('Número de signal candidates')
+plt.title('Delta T between neutron and prompt candidate')
+plt.legend()
+plt.savefig("/home/cgarcia_2002/nHits_count/plots_neutronDetection/DeltaT_Neutron_Prompt.png")
+
+print("Delta T calculado y gráfico guardado.")
+
+# Save neutron candidates to CSV files ###########################################################################################################
+
+print("Guardando candidatos a neutrones en archivos CSV...")
+neutron_candidates = []
+for event_number, times in neutron_dict.items():
+    for start_time, neutron_times in times.items():
+        for neutron_time in neutron_times:
+            neutron_candidates.append({
+                'event_number': event_number,
+                'start_time': start_time,
+                'neutron_time': neutron_time
+            })
+
+neutron_candidates_sig = []
+for event_number, times in neutron_dict_sig.items():
+    for start_time, neutron_times in times.items():
+        for neutron_time in neutron_times:
+            neutron_candidates_sig.append({
+                'event_number': event_number,
+                'start_time': start_time,
+                'neutron_time': neutron_time
+            })
+            
+df_neutron_candidates = pd.DataFrame(neutron_candidates)
+df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
+df_neutron_candidates.to_csv('/home/cgarcia_2002/nHits_count/plots_neutronDetection/neutron_candidates.csv', index=False)
+df_neutron_candidates_sig.to_csv('/home/cgarcia_2002/nHits_count/plots_neutronDetection/neutron_candidates_sig.csv', index=False)
+
+print("Archivos CSV guardados.")
+print("Ejecución finalizada con éxito.")

@@ -24,3 +24,7 @@ build/
 env_WCTE
 .wget-hsts
 *.h5
+venv_scratch
+*.err
+*.out
+*.slurm

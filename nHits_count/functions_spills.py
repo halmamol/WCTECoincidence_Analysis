@@ -5,7 +5,7 @@ import pandas as pd
 import json
 import awkward as ak
 
-def spill_nHitsTT(times_branch_event_arg, threshold_inf, window, death_window, charge_branch_event = [], total = False, threshold_sup = np.inf):
+def spill_nHitsTT(times_branch_event_arg, threshold_inf, window, death_window, charge_branch_event = [], threshold_sup = np.inf):
     times_branch_event = np.sort(times_branch_event_arg.copy()) #just to make sure, but it is supposed to be sorted
 
     if times_branch_event[0]!=times_branch_event_arg[0]:
@@ -25,7 +25,6 @@ def spill_nHitsTT(times_branch_event_arg, threshold_inf, window, death_window, c
             count = max(charge_branch_event[mask])
         else:
             count = mask.sum()
-
 
         if count > threshold_inf and count<threshold_sup:
             threshold_times.append(time_hit)
@@ -52,6 +51,8 @@ def repeat_spills_nHits(event_number_branch, times_branch_sorted, threshold, win
     deleted_indices_by_event = {}
 
     for event in event_number_branch:
+        if event%1000 == 0:
+            print(f"Processing event {event}...")
         remaining_times = times_branch_sorted[event].copy()
         all_thresholds = []
         all_deleted_indices = []
@@ -92,6 +93,8 @@ def repeat_spills_Charge(event_number_branch, times_branch_sorted, charge_branch
     deleted_indices_by_event = {}
 
     for event in event_number_branch:
+        if event % 1000 == 0:
+            print(f"Processing event {event}...")
         remaining_times = times_branch_sorted[event].copy()
         remaining_charges = charge_branch_sorted[event].copy()
         all_thresholds = []
@@ -310,18 +313,49 @@ def prompt_candidates(event_branch, times_branch_arg, window_sliding, window_cle
 
             if len(clean_list) + len(clean_list_2) == 0:
                 valid_thresholds.append(time_prompt)
-            else:
-                
-                print(f"Not using trigger {time_prompt} because it has other signal_candidate too close in event {event}") 
+            #else:
+            #    print(f"Not using trigger {time_prompt} because it has other signal_candidate too close in event {event}") 
 
         return valid_thresholds
     
     theshold_times = {}
     
     for event in event_branch:
+        if event%1000 == 0:
+            print(f"Processing event {event}...")
         threshold_times_event = prompt_candidates_event(event, times_branch_arg[event], window_sliding, window_clean, threshold_inf, threshold_sup)
         
         if len(threshold_times_event)!=0:
             theshold_times[event] = threshold_times_event
 
     return theshold_times
+
+def neutron_detection(event_branch, times_branch_event_arg, threshold_times, window_sliding, window_neutron, threshold_inf, threshold_sup = np.inf, window_prompt = 100):
+
+    def neutron_detection_event(times_branch_event_arg, threshold_times, window_sliding, window_neutron, threshold_inf, threshold_sup):
+
+        dict_neutrons_event = {}
+        for time_prompt in threshold_times:
+            mask = (times_branch_event_arg >= time_prompt + window_prompt) & (times_branch_event_arg < time_prompt + +window_prompt + window_sliding)
+            if mask.sum() == 0:
+                #print(f"No hits found in the sliding window for prompt time {time_prompt}. Skipping neutron detection.")
+                continue
+            neutron_candidates, _ = spill_nHitsTT(times_branch_event_arg[mask], threshold_inf, window_neutron, 0, threshold_sup=threshold_sup)
+            if len(neutron_candidates) != 0:
+                dict_neutrons_event[time_prompt] = neutron_candidates
+
+        return dict_neutrons_event
+    
+    dict_neutrons = {}
+    for event in event_branch:
+        if event % 1000 == 0:
+            print(f"Processing event {event}...")
+        if event in threshold_times:
+
+            dict_neutrons_event = neutron_detection_event(times_branch_event_arg[event], threshold_times[event], window_sliding, window_neutron, threshold_inf, threshold_sup)
+            if dict_neutrons_event:
+                dict_neutrons[event] = dict_neutrons_event
+        #else:
+            #print(f"Event {event} has no threshold times, skipping neutron detection.")
+
+    return dict_neutrons
