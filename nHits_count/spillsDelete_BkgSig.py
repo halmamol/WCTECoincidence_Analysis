@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import functions_nHits 
-import functions_spills
+import nHits_count.functions_spills_oldVersion as functions_spills_oldVersion
 
 root_file_path = "/data/cgarcia_2002/WCTE/data/2385_calib_time/WCTE_offline_R2385S0P0.root"  #signal
 
@@ -30,7 +30,7 @@ for times_evt, charges_evt, mpmt_evt in zip(times_branch, charge_branch, mpmt_id
     charge_branch_sorted.append(charges_evt[idx_sorted])
     mpmt_id_branch_sorted.append(mpmt_evt[idx_sorted])
 
-times_FilterSpills_nHits, charge_FilterSpills_ChargeTT, spills_list = functions_spills.repeat_spills_Charge(event_number_branch_sig, times_branch_sorted, charge_branch_sorted)
+times_FilterSpills_nHits, charge_FilterSpills_ChargeTT, spills_list = functions_spills_oldVersion.repeat_spills_Charge(event_number_branch_sig, times_branch_sorted, charge_branch_sorted)
 #times_FilterSpills_nHits, spills_list2 = functions_spills.repeat_spills_nHits(event_number_branch_sig, times_branch_sorted)
 
 ##########################################
@@ -59,7 +59,7 @@ for times_evt, charges_evt, mpmt_evt in zip(times_branch, charge_branch, mpmt_id
     charge_branch_sorted.append(charges_evt[idx_sorted])
     mpmt_id_branch_sorted.append(mpmt_evt[idx_sorted])
 
-times_FilterSpills_nHits_bkg, charge_FilterSpills_ChargeTT_bkg, spills_list_bkg = functions_spills.repeat_spills_Charge(event_number_branch_bkg, times_branch_sorted, charge_branch_sorted)
+times_FilterSpills_nHits_bkg, charge_FilterSpills_ChargeTT_bkg, spills_list_bkg = functions_spills_oldVersion.repeat_spills_Charge(event_number_branch_bkg, times_branch_sorted, charge_branch_sorted)
 #times_FilterSpills_nHits_bkg, spills_list2_bkg = functions_spills.repeat_spills_nHits(event_number_branch_bkg, times_branch_sorted)
 
 

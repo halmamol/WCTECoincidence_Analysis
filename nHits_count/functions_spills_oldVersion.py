@@ -359,3 +359,36 @@ def neutron_detection(event_branch, times_branch_event_arg, threshold_times, win
             #print(f"Event {event} has no threshold times, skipping neutron detection.")
 
     return dict_neutrons
+
+def multiple_partition(root_files):
+
+    times_branch_sorted = []
+    times_branch_sorted_TOF = []
+    charge_branch_sorted = []
+    mpmt_id_branch_sorted = []
+    event_number_branch = []
+
+
+    # Contador global de eventos
+    event_offset = 0
+
+    for file_path in root_files:
+        print(f"Procesando archivo: {file_path}")
+        file = uproot.open(file_path)
+        tree = file["WCTEReadoutWindows"]
+
+        times_branch_sorted_i, times_branch_sorted_TOF_i, charge_branch_sorted_i, mpmt_id_branch_sorted_i, event_number_branch_i = initial_treatment(tree)
+
+        # Ajustar los event_numbers con offset para que no se repitan
+        new_event_numbers = [i + event_offset for i in event_number_branch_i]
+
+        times_branch_sorted.extend(times_branch_sorted_i)
+        times_branch_sorted_TOF.extend(times_branch_sorted_TOF_i)
+        charge_branch_sorted.extend(charge_branch_sorted_i)
+        mpmt_id_branch_sorted.extend(mpmt_id_branch_sorted_i)
+        event_number_branch.extend(new_event_numbers)
+
+        # Actualizar offset para el siguiente archivo
+        event_offset += tree.num_entries
+
+    return times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch

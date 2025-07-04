@@ -28,3 +28,4 @@ venv_scratch
 *.err
 *.out
 *.slurm
+*.pkl

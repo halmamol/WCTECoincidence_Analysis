@@ -5,13 +5,12 @@ import uproot
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import nHits_count.functions_spills_oldVersion as functions_spills_oldVersion
+import functions_spills
 import glob
 import os
 import argparse
 import pickle
 
-# Crear el parser
 parser = argparse.ArgumentParser(description="Partition to analyse")
 
 # Agregar argumento opcional con valor por defecto
@@ -25,7 +24,8 @@ parser.add_argument(
 args = parser.parse_args()
 partition = args.partition
 
-# Mostrar resultado
+
+# Import initial data ##############################################################
 if partition == "all":
     print("Analysing all partitions.")
 
@@ -37,7 +37,7 @@ if partition == "all":
 
     print(f"Found {len(root_files_bkg)} background ROOT files.")
 
-    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch = functions_spills_oldVersion.multiple_partition(root_files_bkg)
+    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch = functions_spills.multiple_partition(root_files_bkg)
 
     print("Datos de background cargados.")
     N_events = max(event_number_branch) + 1
@@ -50,10 +50,11 @@ if partition == "all":
 
     print(f"Found {len(root_files_sig)} signal ROOT files.")
 
-    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig = functions_spills_oldVersion.multiple_partition(root_files_sig)
+    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig = functions_spills.multiple_partition(root_files_sig)
 
     print("Datos de signal cargados.")
     N_events_sig = max(event_number_branch_sig) + 1
+    print(f"Número total de eventos en background", len(times_branch_sorted))
 
 else:
     print(f"Analysing partition: {partition}")
@@ -64,7 +65,7 @@ else:
     file = uproot.open(root_file_path)
     tree = file["WCTEReadoutWindows"]  
 
-    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch = functions_spills_oldVersion.initial_treatment(tree)
+    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch = functions_spills.initial_treatment(tree)
     N_events = tree.num_entries
 
     #Signal data download #############################################################################################
@@ -75,30 +76,38 @@ else:
     file = uproot.open(root_file_path)
     tree_sig = file["WCTEReadoutWindows"]  
 
-    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig = functions_spills_oldVersion.initial_treatment(tree_sig)
+    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig = functions_spills.initial_treatment(tree_sig)
     N_events_sig = tree_sig.num_entries
 
 print(f"Número total de eventos en background: {N_events}")
 print(f"Número total de eventos en signal: {N_events_sig}")
 
-# Filter spills using nHits threshold ###################################################################################
+# Filtering data #################################################################################################
 
-print("Aplicando filtro por nHits para fondo...")
-times_branch_modified, threshold_times, deleted_index_dict = functions_spills_oldVersion.repeat_spills_nHits(event_number_branch, times_branch_sorted_TOF, 300, 5000, 5000)
-print("Aplicando filtro por nHits para señal...")
-times_branch_modified_sig, threshold_times_sig, deleted_index_dict_sig = functions_spills_oldVersion.repeat_spills_nHits(event_number_branch_sig, times_branch_sorted_TOF_sig, 300, 5000, 5000)
+# Cargar
+with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_BKG.pkl', 'rb') as f:
+    deleted_indices_nHits = pickle.load(f)
 
-charge_branch_filtered = functions_spills_oldVersion.delete_indices_list(charge_branch_sorted, deleted_index_dict)
-charge_branch_filtered_sig = functions_spills_oldVersion.delete_indices_list(charge_branch_sorted_sig, deleted_index_dict_sig)
-print("Filtros por nHits aplicados.")
+with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_SIG.pkl', 'rb') as f:
+    deleted_indices_nHits_sig = pickle.load(f)
 
-#Filter spills using charge threshold #############################################################################################
+with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_BKG.pkl', 'rb') as f:
+    deleted_indices_Charge = pickle.load(f)
 
-print("Aplicando filtro por carga para fondo...")
-times_branch_modified_chargesTT, charge_branch_modified_chargesTT, threshold_charges, deleted_indices = functions_spills_oldVersion.repeat_spills_Charge(event_number_branch, times_branch_modified, charge_branch_filtered, 50, 5000, threshold = 5000)
-print("Aplicando filtro por carga para señal...")
-times_branch_modified_chargesTT_sig, charge_branch_modified_chargesTT_sig, threshold_charges_sig, deleted_indices_sig = functions_spills_oldVersion.repeat_spills_Charge(event_number_branch_sig, times_branch_modified_sig, charge_branch_filtered_sig, 50, 5000, threshold = 5000)
-print("Filtros por carga aplicados.")
+with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_SIG.pkl', 'rb') as f:
+    deleted_indices_Charge_sig = pickle.load(f)
+
+times_branch_filtered = functions_spills.delete_indices_list(times_branch_sorted_TOF, deleted_indices_nHits)
+charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_sorted, deleted_indices_nHits)
+
+times_branch_filtered = functions_spills.delete_indices_list(times_branch_filtered, deleted_indices_Charge)
+charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_filtered, deleted_indices_Charge)
+
+times_branch_filtered_sig = functions_spills.delete_indices_list(times_branch_sorted_TOF_sig, deleted_indices_nHits_sig)
+charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_sorted_sig, deleted_indices_nHits_sig)
+
+times_branch_filtered_sig = functions_spills.delete_indices_list(times_branch_filtered_sig, deleted_indices_Charge_sig)
+charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_filtered_sig, deleted_indices_Charge_sig)
 
 #Plot filtered data #################################################################################################
 
@@ -112,16 +121,16 @@ nDetections_event_fin_sig = []
 for x in times_branch_sorted_TOF:
     nDetections_event_in.append(len(x))
 
-for x in times_branch_modified_chargesTT:
+for x in times_branch_filtered:
     nDetections_event_fin.append(len(x))
 
 for x in times_branch_sorted_TOF_sig:
     nDetections_event_in_sig.append(len(x))
 
-for x in times_branch_modified_chargesTT_sig:
+for x in times_branch_filtered_sig:
     nDetections_event_fin_sig.append(len(x))
 
-n_bins = 100
+n_bins = 600
 
 hist_in, bin_edges = np.histogram(nDetections_event_in, bins=n_bins)
 hist_in_sig, _ = np.histogram(nDetections_event_in_sig, bins=bin_edges)  # usa los mismos bordes
@@ -130,35 +139,40 @@ hist_filtered, _ = np.histogram(nDetections_event_fin, bins = bin_edges)
 hist_filtered_sig, _ = np.histogram(nDetections_event_fin_sig, bins = bin_edges)
 
 plt.figure(figsize=(10, 6), facecolor='white')
-plt.fill_between(bin_edges[:-1], hist_filtered / N_events, hatch='\\\\\\\\', step='post', color='white', edgecolor='red', alpha=0.55, label='Bkg (after filter)')
-plt.fill_between(bin_edges[:-1], hist_filtered_sig / N_events_sig, hatch='\\\\\\\\', step='post', color='white', edgecolor='blue', alpha=0.55, label='Signal (after filter)')
-plt.step(bin_edges[:-1], hist_in_sig / N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Signal (before filter)')
-plt.step(bin_edges[:-1], hist_in / N_events, where='post', color='crimson', linestyle='-', linewidth=1.5, label='Bkg (before filter)')
-plt.legend()
-plt.xlabel('Number of Hits')
-plt.ylabel('Fraction of Events (normalized)')
-plt.title('Histograms Before and After Filtering')
+plt.step(bin_edges[:-1], hist_in, where='post', color='crimson', linestyle='--', linewidth=1.5, label='Background')
+plt.step(bin_edges[:-1], hist_in_sig *N_events/ N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Data')
+plt.legend(fontsize=12)
+plt.xlabel('Number of Hits', fontsize=12)
+plt.ylabel('Number of Events', fontsize=12)
+plt.title('Histogram hits/event', fontsize=14)
 plt.tight_layout()
-plt.xlim(0, 5000)
-plt.savefig("/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/test_2/Comparision_SigBkg_Filtering.png")
+plt.xlim(0, 4000)
+plt.xticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en X
+plt.yticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en Y
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Initial_Hist_hitsEvent.png")
 
 
-with open("/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/filtered_data.pkl", "wb") as f:
-    pickle.dump({
-        "times_branch_modified": times_branch_modified_chargesTT_sig,
-        "charge_branch_modified": charge_branch_modified_chargesTT,
-        "times_branch_modified_sig": times_branch_modified_chargesTT_sig,
-        "charge_branch_modified_sig": charge_branch_modified_chargesTT_sig
-        # add any other variables you want to save
-    }, f)
+plt.figure(figsize=(10, 6), facecolor='white')
+plt.fill_between(bin_edges[:-1], hist_filtered, hatch='\\\\\\\\', step='post', color='white', edgecolor='red', alpha=0.55, linestyle= '--', label='Bkg (after filter)')
+plt.fill_between(bin_edges[:-1], hist_filtered_sig *N_events / N_events_sig, hatch='\\\\\\\\', step='post', color='white', edgecolor='blue', alpha=0.55, label='Data (after filter)')
+plt.step(bin_edges[:-1], hist_in, where='post', color='crimson', linestyle='--', linewidth=1.5, label='Bkg (before filter)')
+plt.step(bin_edges[:-1], hist_in_sig *N_events/ N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Data (before filter)')
+plt.legend(fontsize=12)
+plt.xlabel('Number of Hits', fontsize=12)
+plt.ylabel('Number of Events', fontsize=12)
+plt.title('Histograms Before and After Filtering', fontsize=14)
+plt.tight_layout()
+plt.xlim(0, 4000)
+plt.xticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en X
+plt.yticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en Y
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Filtering.png")
 
-"""
 bin_window = 4000
 
-nHits_tot = functions_spills.counting_nHits_window(event_number_branch, times_branch_modified_chargesTT, bin_window)
+nHits_tot = functions_spills.counting_nHits_window(event_number_branch, times_branch_filtered, bin_window)
 nHits_in = functions_spills.counting_nHits_window(event_number_branch, times_branch_sorted_TOF, bin_window)
 
-nHits_tot_sig = functions_spills.counting_nHits_window(event_number_branch_sig, times_branch_modified_chargesTT_sig, bin_window)
+nHits_tot_sig = functions_spills.counting_nHits_window(event_number_branch_sig, times_branch_filtered_sig, bin_window)
 nHits_in_sig = functions_spills.counting_nHits_window(event_number_branch_sig, times_branch_sorted_TOF_sig, bin_window)
 
 hist_in, bin_edges = np.histogram(nHits_in, bins=100, range=(0, 500))
@@ -172,12 +186,13 @@ n_windows_ev = 270000 / bin_window
 fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
 
 # Top plot: Background and Signal
-axs[0].step(bin_edges[:-1], hist_in / (N_events * n_windows_ev), linewidth = 1, where='post', label='bkg', color='red')
-axs[0].step(bin_edges[:-1], hist_in_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='signal', color='blue')
-
-axs[0].set_ylabel("Fraction of windows")
-axs[0].set_xlabel(f"hits in {bin_window} ns")
-axs[0].set_title("Initial data")
+axs[0].step(bin_edges[:-1], hist_in / (N_events * n_windows_ev), linewidth = 1, where='post', label='Background', color='red')
+axs[0].step(bin_edges[:-1], hist_in_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='Data', color='blue')
+axs[0].tick_params(axis='x', labelsize=12)
+axs[0].tick_params(axis='y', labelsize=12)
+axs[0].set_ylabel("Fraction of windows", fontsize=12)
+axs[0].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
+axs[0].set_title("Initial data", fontsize=14)
 axs[0].set_yscale('log')
 axs[0].legend()
 
@@ -187,44 +202,50 @@ ratio = np.divide(
     hist_in / (N_events * n_windows_ev),
     out=np.full_like(hist_in, 0, dtype=float),
     where=hist_in > 0)
-axs[1].step(bin_edges[:-1], ratio, linewidth = 1, where='post', color='green', label='Signal / Background')
-axs[1].set_xlabel(f"hits in {bin_window} ns")
-axs[1].set_ylabel("S/B ratio")
-axs[1].legend()
+axs[1].step(bin_edges[:-1], ratio, linewidth = 1, where='post', color='green', label='Data / Background')
+axs[1].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
+axs[1].set_ylabel("S/B ratio", fontsize=12)
+axs[1].legend(fontsize=12)
+axs[1].tick_params(axis='x', labelsize=12)
+axs[1].tick_params(axis='y', labelsize=12)
 plt.tight_layout()
-plt.savefig("/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/Comparision_SigBkg_Windows_BeforeFiltering.png")
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Windows_BeforeFiltering.png")
 
 fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
 
 # Top plot: Background and Signal
-axs[0].step(bin_edges[:-1], hist_filtered / (N_events * n_windows_ev), linewidth = 1, where='post', label='bkg', color='red')
-axs[0].step(bin_edges[:-1], hist_filtered_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='signal', color='blue')
-axs[0].set_ylabel("Fraction of windows")
-axs[0].set_xlabel(f"hits in {bin_window} ns")
-axs[0].set_title("After Filtering total data")
+axs[0].step(bin_edges[:-1], hist_filtered / (N_events * n_windows_ev), linewidth = 1, where='post', label='Background', color='red')
+axs[0].step(bin_edges[:-1], hist_filtered_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='Data', color='blue')
+axs[0].set_ylabel("Fraction of windows", fontsize=12)
+axs[0].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
+axs[0].set_title("After Filtering total data", fontsize=14)
 axs[0].set_yscale('log')
-axs[0].legend()
-
+axs[0].legend(fontsize=12)
+axs[0].tick_params(axis='x', labelsize=12)
+axs[0].tick_params(axis='y', labelsize=12)
 # Bottom plot: Signal/Background Ratio
 ratio_2 = np.divide(
     hist_filtered_sig / (N_events_sig * n_windows_ev),
     hist_filtered / (N_events * n_windows_ev),
     out=np.full_like(hist_filtered, 0, dtype=float),
     where=hist_filtered > 0)
-axs[1].step(bin_edges[:-1], ratio_2, linewidth = 1, where='post', color='green', label='Signal / Background')
-axs[1].set_xlabel(f"hits in {bin_window} ns")
-axs[1].set_ylabel("S/B ratio")
-axs[1].legend()
+axs[1].step(bin_edges[:-1], ratio_2, linewidth = 1, where='post', color='green', label='Data / Background')
+axs[1].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
+axs[1].set_ylabel("S/B ratio", fontsize=12)
+axs[1].legend(fontsize=12)
+axs[1].tick_params(axis='x', labelsize=12)
+axs[1].tick_params(axis='y', labelsize=12)
 plt.tight_layout()
-plt.savefig("/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/Comparision_SigBkg_Windows_AfterFiltering.png")
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Windows_AfterFiltering.png")
 
 print("Histogramas guardados.")
+
 
 # Prompt candidates detection ###########################################################################################################
 
 print("Buscando candidatos prompt...")
-threshold_times_50 = functions_spills.prompt_candidates(event_number_branch, times_branch_modified_chargesTT, 100, 200, 10, 50)
-threshold_times_50_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_modified_chargesTT_sig, 100, 200, 10, 50)
+threshold_times_50 = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 100, 200, 10, 50)
+threshold_times_50_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 100, 200, 10, 50)
 print("Candidatos prompt encontrados.")
 
 window_ns = 100
@@ -235,7 +256,7 @@ for event in event_number_branch:
     if event in threshold_times_50.keys():
     
         all_hits = [t for ref_time in threshold_times_50[event]
-            for t in times_branch_modified_chargesTT[event]
+            for t in times_branch_filtered[event]
             if ref_time <= t <= ref_time + window_ns]
     else:
         all_hits = []
@@ -247,7 +268,7 @@ for event in event_number_branch_sig:
     if event in  threshold_times_50_sig.keys():
 
         all_hits = [t for ref_time in threshold_times_50_sig[event]
-            for t in times_branch_modified_chargesTT_sig[event]
+            for t in times_branch_filtered_sig[event]
             if ref_time <= t <= ref_time + window_ns]
     else:
         all_hits= []
@@ -256,9 +277,9 @@ for event in event_number_branch_sig:
 # Neutron detection ###########################################################################################################
 
 print("Detectando neutrones en fondo...")
-neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_modified_chargesTT,  threshold_times_50, 100000, 100, 10, 30)
+neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_50, 150000, 100, 10, threshold_sup=14)
 print("Detectando neutrones en señal...")
-neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_modified_chargesTT_sig,  threshold_times_50_sig, 100000, 100, 10, 30)
+neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_50_sig, 150000, 100, 10, threshold_sup=14)
 
 print("Prompt candidates background", sum(len(v) for v in threshold_times_50.values()))
 print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
@@ -283,8 +304,8 @@ for event_number in neutron_dict_sig:
         deltaT_sig.append(min(neutron_times) - start_time)
 
 
-hist, bins_edges = np.histogram(deltaT, bins=100, range=(0, 10000))
-hist_sig, _ = np.histogram(deltaT_sig, bins=bins_edges, range=(0, 10000))
+hist, bins_edges = np.histogram(deltaT, bins=100, range=(0, 100000))
+hist_sig, _ = np.histogram(deltaT_sig, bins=bins_edges)
 
 plt.figure(figsize=(8, 4))
 
@@ -294,7 +315,7 @@ plt.xlabel('Delta T (ns)')
 plt.ylabel('Número de signal candidates')
 plt.title('Delta T between neutron and prompt candidate')
 plt.legend()
-plt.savefig("/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/DeltaT_Neutron_Prompt.png")
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/DeltaT_Neutron_Prompt_10-14.png")
 
 print("Delta T calculado y gráfico guardado.")
 
@@ -323,9 +344,8 @@ for event_number, times in neutron_dict_sig.items():
             
 df_neutron_candidates = pd.DataFrame(neutron_candidates)
 df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
-df_neutron_candidates.to_csv('/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/neutron_candidates.csv', index=False)
-df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/nHits_count/plots_neutronDetection/neutron_candidates_sig.csv', index=False)
+df_neutron_candidates.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_10-14.csv', index=False)
+df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_sig_10-14.csv', index=False)
 
 print("Archivos CSV guardados.")
 print("Ejecución finalizada con éxito.")
-"""
