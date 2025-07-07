@@ -11,6 +11,12 @@ import os
 import argparse
 import pickle
 
+from matplotlib import rcParams
+rcParams['mathtext.fontset'] = 'stix'
+rcParams['font.family'] = 'STIXGeneral'
+rcParams['figure.figsize'] = [10, 8]
+rcParams['font.size'] = 18
+
 parser = argparse.ArgumentParser(description="Partition to analyse")
 
 # Agregar argumento opcional con valor por defecto
@@ -54,7 +60,6 @@ if partition == "all":
 
     print("Datos de signal cargados.")
     N_events_sig = max(event_number_branch_sig) + 1
-    print(f"Número total de eventos en background", len(times_branch_sorted))
 
 else:
     print(f"Analysing partition: {partition}")
@@ -138,35 +143,31 @@ hist_in_sig, _ = np.histogram(nDetections_event_in_sig, bins=bin_edges)  # usa l
 hist_filtered, _ = np.histogram(nDetections_event_fin, bins = bin_edges)
 hist_filtered_sig, _ = np.histogram(nDetections_event_fin_sig, bins = bin_edges)
 
-plt.figure(figsize=(10, 6), facecolor='white')
+plt.figure(facecolor='white')
 plt.step(bin_edges[:-1], hist_in, where='post', color='crimson', linestyle='--', linewidth=1.5, label='Background')
 plt.step(bin_edges[:-1], hist_in_sig *N_events/ N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Data')
-plt.legend(fontsize=12)
-plt.xlabel('Number of Hits', fontsize=12)
-plt.ylabel('Number of Events', fontsize=12)
-plt.title('Histogram hits/event', fontsize=14)
+plt.legend()
+plt.xlabel('Number of Hits')
+plt.ylabel('Number of Events')
+plt.title('Histogram hits/event')
 plt.tight_layout()
 plt.xlim(0, 4000)
-plt.xticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en X
-plt.yticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en Y
 plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Initial_Hist_hitsEvent.png")
 
 
-plt.figure(figsize=(10, 6), facecolor='white')
-plt.fill_between(bin_edges[:-1], hist_filtered, hatch='\\\\\\\\', step='post', color='white', edgecolor='red', alpha=0.55, linestyle= '--', label='Bkg (after filter)')
+plt.figure(facecolor='white')
+plt.fill_between(bin_edges[:-1], hist_filtered,  hatch='//////',  step='post', color='white', edgecolor='red', alpha=0.55, linestyle= '--', label='Bkg (after filter)')
 plt.fill_between(bin_edges[:-1], hist_filtered_sig *N_events / N_events_sig, hatch='\\\\\\\\', step='post', color='white', edgecolor='blue', alpha=0.55, label='Data (after filter)')
 plt.step(bin_edges[:-1], hist_in, where='post', color='crimson', linestyle='--', linewidth=1.5, label='Bkg (before filter)')
 plt.step(bin_edges[:-1], hist_in_sig *N_events/ N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Data (before filter)')
-plt.legend(fontsize=12)
-plt.xlabel('Number of Hits', fontsize=12)
-plt.ylabel('Number of Events', fontsize=12)
-plt.title('Histograms Before and After Filtering', fontsize=14)
+plt.legend()
+plt.xlabel('Number of Hits')
+plt.ylabel('Number of Events')
+plt.title('Histograms Before and After Filtering')
 plt.tight_layout()
 plt.xlim(0, 4000)
-plt.xticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en X
-plt.yticks(fontsize=12)  # Opcional: tamaño de las etiquetas de los ticks en Y
 plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Filtering.png")
-
+"""
 bin_window = 4000
 
 nHits_tot = functions_spills.counting_nHits_window(event_number_branch, times_branch_filtered, bin_window)
@@ -183,16 +184,14 @@ hist_filtered_sig, _ = np.histogram(nHits_tot_sig, bins = bin_edges)
 
 n_windows_ev = 270000 / bin_window
 
-fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
+fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]})
 
 # Top plot: Background and Signal
 axs[0].step(bin_edges[:-1], hist_in / (N_events * n_windows_ev), linewidth = 1, where='post', label='Background', color='red')
 axs[0].step(bin_edges[:-1], hist_in_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='Data', color='blue')
-axs[0].tick_params(axis='x', labelsize=12)
-axs[0].tick_params(axis='y', labelsize=12)
-axs[0].set_ylabel("Fraction of windows", fontsize=12)
-axs[0].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
-axs[0].set_title("Initial data", fontsize=14)
+axs[0].set_ylabel("Fraction of windows")
+axs[0].set_xlabel(f"hits in {bin_window} ns")
+axs[0].set_title("Initial data")
 axs[0].set_yscale('log')
 axs[0].legend()
 
@@ -203,26 +202,22 @@ ratio = np.divide(
     out=np.full_like(hist_in, 0, dtype=float),
     where=hist_in > 0)
 axs[1].step(bin_edges[:-1], ratio, linewidth = 1, where='post', color='green', label='Data / Background')
-axs[1].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
-axs[1].set_ylabel("S/B ratio", fontsize=12)
-axs[1].legend(fontsize=12)
-axs[1].tick_params(axis='x', labelsize=12)
-axs[1].tick_params(axis='y', labelsize=12)
+axs[1].set_xlabel(f"hits in {bin_window} ns")
+axs[1].set_ylabel("S/B ratio")
+axs[1].legend()
 plt.tight_layout()
 plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Windows_BeforeFiltering.png")
 
-fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
+fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]})
 
 # Top plot: Background and Signal
 axs[0].step(bin_edges[:-1], hist_filtered / (N_events * n_windows_ev), linewidth = 1, where='post', label='Background', color='red')
 axs[0].step(bin_edges[:-1], hist_filtered_sig / (N_events_sig * n_windows_ev), linewidth = 1, where='post', label='Data', color='blue')
-axs[0].set_ylabel("Fraction of windows", fontsize=12)
-axs[0].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
-axs[0].set_title("After Filtering total data", fontsize=14)
+axs[0].set_ylabel("Fraction of windows")
+axs[0].set_xlabel(f"hits in {bin_window} ns")
+axs[0].set_title("After Filtering total data")
 axs[0].set_yscale('log')
-axs[0].legend(fontsize=12)
-axs[0].tick_params(axis='x', labelsize=12)
-axs[0].tick_params(axis='y', labelsize=12)
+axs[0].legend()
 # Bottom plot: Signal/Background Ratio
 ratio_2 = np.divide(
     hist_filtered_sig / (N_events_sig * n_windows_ev),
@@ -230,11 +225,9 @@ ratio_2 = np.divide(
     out=np.full_like(hist_filtered, 0, dtype=float),
     where=hist_filtered > 0)
 axs[1].step(bin_edges[:-1], ratio_2, linewidth = 1, where='post', color='green', label='Data / Background')
-axs[1].set_xlabel(f"hits in {bin_window} ns", fontsize=12)
-axs[1].set_ylabel("S/B ratio", fontsize=12)
-axs[1].legend(fontsize=12)
-axs[1].tick_params(axis='x', labelsize=12)
-axs[1].tick_params(axis='y', labelsize=12)
+axs[1].set_xlabel(f"hits in {bin_window} ns")
+axs[1].set_ylabel("S/B ratio")
+axs[1].legend()
 plt.tight_layout()
 plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Windows_AfterFiltering.png")
 
@@ -307,7 +300,7 @@ for event_number in neutron_dict_sig:
 hist, bins_edges = np.histogram(deltaT, bins=100, range=(0, 100000))
 hist_sig, _ = np.histogram(deltaT_sig, bins=bins_edges)
 
-plt.figure(figsize=(8, 4))
+plt.figure()
 
 plt.step(bins_edges[:-1], hist/N_events, where='post', linewidth=1, label='bkg', color='red')
 plt.step(bins_edges[:-1], hist_sig/N_events_sig, where='post', linewidth=1, label='signal', color='blue')
@@ -349,3 +342,4 @@ df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutro
 
 print("Archivos CSV guardados.")
 print("Ejecución finalizada con éxito.")
+"""
