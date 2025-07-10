@@ -225,9 +225,11 @@ def initial_treatment(tree):
     mpmt_slot_branch = tree["hit_mpmt_slot_ids"].array()
     pmt_position = tree["hit_pmt_position_ids"].array()
     event_number_branch = tree["event_number"].array(library="np")
+    hit_cards_id = tree["hit_mpmt_card_ids"].array()
+    has_time_cte = tree["hit_pmt_has_time_constant"].array()
 
     # Crear una máscara booleana por evento donde ambos valores sean >= 0
-    valid_mask = (mpmt_slot_branch >= 0) & (pmt_position >= 0)
+    valid_mask = (mpmt_slot_branch >= 0) & (pmt_position >= 0) & (charge_branch < 1e4) & (hit_cards_id < 120) &  (has_time_cte != 0)
 
     # Aplicar la máscara a cada rama para eliminar los hits inválidos
     times_branch_clean = times_branch[valid_mask]
@@ -238,7 +240,7 @@ def initial_treatment(tree):
     mpmt_map = read_mpmt_offsets("/home/cgarcia_2002/nHits_count/mpmt_tof_pos1.json")
     corrections = correction_TOF(mpmt_map, mpmt_slot_branch_clean, pmt_position_clean)
     corrected_times = times_branch_clean - corrections
-
+    
     # Ordenar los tiempos por evento y obtener los índices
     sorted_idx = ak.argsort(corrected_times, axis=1)
 
@@ -257,6 +259,8 @@ def initial_treatment(tree):
     return times_sorted_np, times_sorted_TOF_np, charges_sorted_np, mpmt_sorted_np, event_number_branch
 
 def delete_indices_list(list_to_delete, indices):
+    """List to delete es la lista de listas incial
+    Indices es un diccionario donde la clave es el evento y el valor los indices a eliminar"""
 
     new_list = []
 
@@ -370,23 +374,26 @@ def neutron_detection(event_branch, times_branch_event_arg, threshold_times, win
 
 def multiple_partition(root_files):
 
+    root_files_sorted = sorted(root_files, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
+
     times_branch_sorted = []
     times_branch_sorted_TOF = []
     charge_branch_sorted = []
     mpmt_id_branch_sorted = []
     event_number_branch = []
 
-
+    dir_event_partition = {}
     # Contador global de eventos
     event_offset = 0
 
-    for file_path in root_files:
+    for file_path in root_files_sorted:
         print(f"Procesando archivo: {file_path}")
         file = uproot.open(file_path)
         tree = file["WCTEReadoutWindows"]
 
         times_branch_sorted_i, times_branch_sorted_TOF_i, charge_branch_sorted_i, mpmt_id_branch_sorted_i, event_number_branch_i = initial_treatment(tree)
-
+        
+        dir_event_partition[int(file_path.split("P")[-1].split(".")[0])] = len(event_number_branch_i)
         # Ajustar los event_numbers con offset para que no se repitan
         new_event_numbers = [i + event_offset for i in event_number_branch_i]
 
@@ -399,4 +406,4 @@ def multiple_partition(root_files):
         # Actualizar offset para el siguiente archivo
         event_offset += tree.num_entries
 
-    return times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch
+    return times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch, dir_event_partition

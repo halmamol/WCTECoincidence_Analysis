@@ -33,10 +33,11 @@ if partition == "all":
     print("Cargando datos de bkg...")
     root_dir_bkg = "/data/cgarcia_2002/WCTE/data/2384_calib_time/"
     root_files_bkg = sorted(glob.glob(os.path.join(root_dir_bkg, "*.root")))
+    root_files_bkg = sorted(root_files_bkg, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
 
     print(f"Found {len(root_files_bkg)} background ROOT files.")
 
-    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch = functions_spills.multiple_partition(root_files_bkg)
+    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch, _ = functions_spills.multiple_partition(root_files_bkg)
 
     print("Datos de background cargados.")
     N_events = max(event_number_branch) + 1
@@ -46,10 +47,11 @@ if partition == "all":
     print("Cargando datos de signal...")
     root_dir_sig = "/data/cgarcia_2002/WCTE/data/2385_calib_time/"
     root_files_sig = sorted(glob.glob(os.path.join(root_dir_sig, "*.root")))
+    root_files_sig = sorted(root_files_sig, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
 
     print(f"Found {len(root_files_sig)} signal ROOT files.")
 
-    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig = functions_spills.multiple_partition(root_files_sig)
+    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig, _ = functions_spills.multiple_partition(root_files_sig)
 
     print("Datos de signal cargados.")
     N_events_sig = max(event_number_branch_sig) + 1
@@ -93,12 +95,12 @@ print("Filtros por nHits aplicados.")
 
 #Filter spills using charge threshold #############################################################################################
 
-print("Aplicando filtro por carga para fondo...")
+"""print("Aplicando filtro por carga para fondo...")
 times_branch_modified_chargesTT, charge_branch_modified_chargesTT, threshold_charges, deleted_indices = functions_spills.repeat_spills_Charge(event_number_branch, times_branch_modified, charge_branch_filtered, 100, 5000, threshold = 5000)
 print("Aplicando filtro por carga para señal...")
 times_branch_modified_chargesTT_sig, charge_branch_modified_chargesTT_sig, threshold_charges_sig, deleted_indices_sig = functions_spills.repeat_spills_Charge(event_number_branch_sig, times_branch_modified_sig, charge_branch_filtered_sig, 100, 5000, threshold = 5000)
 print("Filtros por carga aplicados.")
-
+"""
 # Save filtered data to pickle files #############################################################################################
 
 import pickle
@@ -110,8 +112,15 @@ with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices
 with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_SIG.pkl', 'wb') as f:
     pickle.dump(deleted_index_dict_sig, f)
 
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_BKG.pkl', 'wb') as f:
+"""with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_BKG.pkl', 'wb') as f:
     pickle.dump(deleted_indices, f)
 
 with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_SIG.pkl', 'wb') as f:
     pickle.dump(deleted_indices_sig, f)
+"""
+
+total_elements = sum(len(v) for v in threshold_times.values())
+print("Total number of elements in threshold_times for bkg:", total_elements, max(event_number_branch), total_elements/max(event_number_branch))
+
+total_elements = sum(len(v) for v in threshold_times_sig.values())
+print("Total number of elements in threshold_times for signal:", total_elements, max(event_number_branch_sig), total_elements/max(event_number_branch_sig))
