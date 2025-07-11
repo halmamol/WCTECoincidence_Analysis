@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import functions_spills
+import functions_analysis
 import glob
 import os
 import argparse
@@ -17,103 +18,88 @@ rcParams['font.family'] = 'STIXGeneral'
 rcParams['figure.figsize'] = [10, 8]
 rcParams['font.size'] = 18
 
-parser = argparse.ArgumentParser(description="Partition to analyse")
+num_entries_list = np.loadtxt("Filtered_data/num_entries_list_bkg.csv", delimiter=",", dtype=int)
+num_entries_list_sig = np.loadtxt("Filtered_data/num_entries_list_sig.csv", delimiter=",", dtype=int)
 
-# Agregar argumento opcional con valor por defecto
-parser.add_argument(
-    "--partition",
-    help="Specify the partition number (if not specified, all partitions will be used)",
-    default="all"
-)
+with open('Filtered_data/datos_filtrados.pkl', 'rb') as f:
+    valores_read, indices_read = pickle.load(f)
 
-# Parsear argumentos
-args = parser.parse_args()
-partition = args.partition
+with open('Filtered_data/datos_filtrados_sig.pkl', 'rb') as f:
+    valores_read_sig, indices_read_sig = pickle.load(f)
 
-# Import initial data ##############################################################
-if partition == "all":
-    print("Analysing all partitions.")
+times_branch_filtered = functions_analysis.a_lista_de_arrays(valores_read, indices_read)
+times_branch_filtered_sig = functions_analysis.a_lista_de_arrays(valores_read_sig, indices_read_sig)
 
-    # Background data download ###################################################################################
+print("Datos filtrados descargados")
+N_events = len(times_branch_filtered)
+N_events_sig = len(times_branch_filtered_sig)
 
-    print("Cargando datos de bkg...")
-    root_dir_bkg = "/data/cgarcia_2002/WCTE/data/2384_calib_time/"
-    root_files_bkg = glob.glob(os.path.join(root_dir_bkg, "*.root"))
-    root_files_bkg = sorted(root_files_bkg, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
+print("Numero de eventos bkg", N_events)
+print("Numero de eventos señal", N_events_sig)
 
-    print(f"Found {len(root_files_bkg)} background ROOT files.")
-    
-    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch, dir_events = functions_spills.multiple_partition(root_files_bkg)
-    print(len(times_branch_sorted))
-    print(type(times_branch_sorted[2]))
-    print("Datos de background cargados.")
-    N_events = max(event_number_branch) + 1
-    
-    #Signal data download #############################################################################################
+event_number_branch = np.arange(0, N_events, 1)
+event_number_branch_sig = np.arange(0, N_events_sig, 1)
+# Prompt candidates detection ###########################################################################################################
 
-    print("Cargando datos de signal...")
-    root_dir_sig = "/data/cgarcia_2002/WCTE/data/2385_calib_time/"
-    root_files_sig = glob.glob(os.path.join(root_dir_sig, "*.root"))
-    root_files_sig = sorted(root_files_sig, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
+print("Buscando candidatos prompt...")
+threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 500, 200, 100, 300)
+threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 500, 200, 100, 300)
+print("Candidatos prompt encontrados.")
 
-    print(f"Found {len(root_files_sig)} signal ROOT files.")
-    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig, dir_events_sig = functions_spills.multiple_partition(root_files_sig)
+# Neutron detection ###########################################################################################################
 
-    print("Datos de signal cargados.")
-    N_events_sig = max(event_number_branch_sig) + 1
+print("Detectando neutrones en fondo...")
+neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, 100, 22, threshold_sup=30, window_prompt=500)
+print("Detectando neutrones en señal...")
+neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, 100, 22, threshold_sup=30, window_prompt=500)
 
-else:
-    print(f"Analysing partition: {partition}")
+print("Prompt candidates background", sum(len(v) for v in threshold_times_prompt.values()))
+print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
 
-    # Background data download ###################################################################################
+print("Prompt candidates signal", sum(len(v) for v in threshold_times_prompt_sig.values()))
+print("Neutron candidates signal", sum(len(v) for v in neutron_dict_sig.values()))
 
-    root_file_path = f"/data/cgarcia_2002/WCTE/data/2384_calib_time/WCTE_offline_R2384S0P{partition}.root"
-    file = uproot.open(root_file_path)
-    tree = file["WCTEReadoutWindows"]  
 
-    times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch = functions_spills.initial_treatment(tree)
-    N_events = tree.num_entries
+# Save neutron candidates to CSV files ###########################################################################################################
 
-    #Signal data download #############################################################################################
+print("Guardando candidatos a neutrones en archivos CSV...")
 
-    root_file_path = f"/data/cgarcia_2002/WCTE/data/2385_calib_time/WCTE_offline_R2385S0P{partition}.root"  #signal
+bordes = np.cumsum([0] + list(num_entries_list))
+bordes_sig = np.cumsum([0] + list(num_entries_list_sig))
 
-    # Open the ROOT file and get the TTree
-    file = uproot.open(root_file_path)
-    tree_sig = file["WCTEReadoutWindows"]  
+neutron_candidates = []
+for event_number, times in neutron_dict.items():
+    for start_time, neutron_times in times.items():
+        for neutron_time in neutron_times:
+            partition, event_number_partition = functions_analysis.get_partition_and_local_event(event_number, bordes)
+            neutron_candidates.append({
+                'partition': partition, 
+                'event_number_partition': event_number_partition,
+                'event_number_total': event_number,
+                'start_time': start_time,
+                'neutron_time': neutron_time      
+            })
 
-    times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig = functions_spills.initial_treatment(tree_sig)
-    N_events_sig = tree_sig.num_entries
+neutron_candidates_sig = []
+for event_number, times in neutron_dict_sig.items():
+    for start_time, neutron_times in times.items():
+        for neutron_time in neutron_times:
+            partition, event_number_partition = functions_analysis.get_partition_and_local_event(event_number, bordes_sig)
+            neutron_candidates_sig.append({
+                'partition': partition, 
+                'event_number_partition': event_number_partition,
+                'event_number': event_number,
+                'start_time': start_time,
+                'neutron_time': neutron_time
+            })
+            
+df_neutron_candidates = pd.DataFrame(neutron_candidates)
+df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
+df_neutron_candidates.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_100-300_22-30_TestPartition.csv', index=False)
+df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_sig_100-300_22-30_TestPartition.csv', index=False)
 
-print(f"Número total de eventos en background: {N_events}")
-print(f"Número total de eventos en signal: {N_events_sig}")
-
-# Filtering data #################################################################################################
-
-# Cargar
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_BKG.pkl', 'rb') as f:
-    deleted_indices_nHits = pickle.load(f)
-
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_SIG.pkl', 'rb') as f:
-    deleted_indices_nHits_sig = pickle.load(f)
-
-"""with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_BKG.pkl', 'rb') as f:
-    deleted_indices_Charge = pickle.load(f)
-
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_SIG.pkl', 'rb') as f:
-    deleted_indices_Charge_sig = pickle.load(f)"""
-
-times_branch_filtered = functions_spills.delete_indices_list(times_branch_sorted_TOF, deleted_indices_nHits)
-charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_sorted, deleted_indices_nHits)
-
-"""times_branch_filtered = functions_spills.delete_indices_list(times_branch_filtered, deleted_indices_Charge)
-charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_filtered, deleted_indices_Charge)"""
-
-times_branch_filtered_sig = functions_spills.delete_indices_list(times_branch_sorted_TOF_sig, deleted_indices_nHits_sig)
-charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_sorted_sig, deleted_indices_nHits_sig)
-
-"""times_branch_filtered_sig = functions_spills.delete_indices_list(times_branch_filtered_sig, deleted_indices_Charge_sig)
-charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_filtered_sig, deleted_indices_Charge_sig)"""
+print("Archivos CSV guardados.")
+print("Ejecución finalizada con éxito.")
 
 #Plot filtered data #################################################################################################
 """
@@ -235,12 +221,7 @@ plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Wi
 print("Histogramas guardados.")"""
 
 
-# Prompt candidates detection ###########################################################################################################
 
-print("Buscando candidatos prompt...")
-threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 500, 200, 100, 300)
-threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 500, 200, 100, 300)
-print("Candidatos prompt encontrados.")
 
 """window_ns = 500  # podrias hacer plots con esto pero en este script no sirve de nada
 
@@ -268,18 +249,7 @@ for event in event_number_branch_sig:
         all_hits= []
     times_branch_prompt_sig.append(np.array(all_hits))"""
 
-# Neutron detection ###########################################################################################################
 
-print("Detectando neutrones en fondo...")
-neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, 100, 22, threshold_sup=30, window_prompt=500)
-print("Detectando neutrones en señal...")
-neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, 100, 22, threshold_sup=30, window_prompt=500)
-
-print("Prompt candidates background", sum(len(v) for v in threshold_times_prompt.values()))
-print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
-
-print("Prompt candidates signal", sum(len(v) for v in threshold_times_prompt_sig.values()))
-print("Neutron candidates signal", sum(len(v) for v in neutron_dict_sig.values()))
 
 # Delta T calculation ###########################################################################################################
 
@@ -313,52 +283,3 @@ plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/DeltaT_Neutron_Prompt
 
 print("Delta T calculado y gráfico guardado.")"""
 
-# Save neutron candidates to CSV files ###########################################################################################################
-
-print("Guardando candidatos a neutrones en archivos CSV...")
-
-bordes = np.cumsum([0] + list(dir_events.values()))
-bordes_sig = np.cumsum([0] + list(dir_events_sig.values()))
-
-def get_partition_and_local_event(event_number, bordes):
-    for i in range(len(bordes)-1):
-        if bordes[i] <= event_number < bordes[i+1]:
-            return i, event_number - bordes[i]
-
-    print(f"Warning: Event {event_number} not found in any partition")
-    return -1, -1  # Si no encuentra
-
-
-neutron_candidates = []
-for event_number, times in neutron_dict.items():
-    for start_time, neutron_times in times.items():
-        for neutron_time in neutron_times:
-            partition, event_number_partition = get_partition_and_local_event(event_number, bordes)
-            neutron_candidates.append({
-                'partition': partition, 
-                'event_number_partition': event_number_partition,
-                'event_number_total': event_number,
-                'start_time': start_time,
-                'neutron_time': neutron_time      
-            })
-
-neutron_candidates_sig = []
-for event_number, times in neutron_dict_sig.items():
-    for start_time, neutron_times in times.items():
-        for neutron_time in neutron_times:
-            partition, event_number_partition = get_partition_and_local_event(event_number, bordes_sig)
-            neutron_candidates_sig.append({
-                'partition': partition, 
-                'event_number_partition': event_number_partition,
-                'event_number': event_number,
-                'start_time': start_time,
-                'neutron_time': neutron_time
-            })
-            
-df_neutron_candidates = pd.DataFrame(neutron_candidates)
-df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
-df_neutron_candidates.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_100-300_22-30_Sorted.csv', index=False)
-df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_sig_100-300_22-30_Sorted.csv', index=False)
-
-print("Archivos CSV guardados.")
-print("Ejecución finalizada con éxito.")

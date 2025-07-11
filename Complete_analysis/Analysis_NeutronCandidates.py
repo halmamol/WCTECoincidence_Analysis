@@ -4,13 +4,15 @@ print("Importando librerias necesarias...")
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import functions_spills
 from scipy.optimize import curve_fit
 from collections import defaultdict
 import matplotlib.ticker as ticker
 import glob
 import os
 import pickle
+
+import functions_spills
+import functions_analysis
 
 from matplotlib import rcParams
 rcParams['mathtext.fontset'] = 'stix'
@@ -19,39 +21,6 @@ rcParams['figure.figsize'] = [10, 8]
 rcParams['font.size'] = 22
 
 #Signal data download #############################################################################################
-
-print("Cargando datos de signal...")
-root_dir_sig = "/data/cgarcia_2002/WCTE/data/2385_calib_time/"
-root_files_sig = sorted(glob.glob(os.path.join(root_dir_sig, "*.root")))
-root_files_sig = sorted(root_files_sig, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
-
-print(f"Found {len(root_files_sig)} signal ROOT files.")
-
-times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig, _ = functions_spills.multiple_partition(root_files_sig)
-print("Total eventos sig", len(times_branch_sorted_TOF_sig))
-print("Datos de signal cargados.")
-N_events_sig = max(event_number_branch_sig) + 1
-
-print("Cargando datos de bkg...")
-root_dir_bkg = "/data/cgarcia_2002/WCTE/data/2384_calib_time/"
-root_files_bkg = sorted(glob.glob(os.path.join(root_dir_bkg, "*.root")))
-root_files_bkg = sorted(root_files_bkg, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
-
-print(f"Found {len(root_files_bkg)} background ROOT files.")
-
-times_branch_sorted, times_branch_sorted_TOF, charge_branch_sorted, mpmt_id_branch_sorted, event_number_branch, _ = functions_spills.multiple_partition(root_files_bkg)
-print("Total eventos bkg", len(times_branch_sorted_TOF))
-print("Datos de background cargados.")
-N_events = max(event_number_branch) + 1
-
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_BKG.pkl', 'rb') as f:
-    deleted_indices_nHits = pickle.load(f)
-
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_SIG.pkl', 'rb') as f:
-    deleted_indices_nHits_sig = pickle.load(f)
-
-times_branch_filtered = functions_spills.delete_indices_list(times_branch_sorted_TOF, deleted_indices_nHits)
-times_branch_filtered_sig = functions_spills.delete_indices_list(times_branch_sorted_TOF_sig, deleted_indices_nHits_sig)
 
 with open('Filtered_data/datos_filtrados.pkl', 'rb') as f:
     valores_read, indices_read = pickle.load(f)
@@ -63,9 +32,14 @@ def a_lista_de_arrays(plano, indices):
     return [plano[indices[i]:indices[i+1]] for i in range(len(indices)-1)]
 
 
-times_branch_reconstructed = a_lista_de_arrays(valores_read, indices_read)
-times_branch_reconstructed_sig = a_lista_de_arrays(valores_read_sig, indices_read_sig)
+times_branch_filtered = a_lista_de_arrays(valores_read, indices_read)
+times_branch_filtered_sig = a_lista_de_arrays(valores_read_sig, indices_read_sig)
 
+N_events = len(times_branch_filtered)
+N_events_sig = len(times_branch_filtered_sig)
+
+print("Numero de eventos bkg", N_events)
+print("Numero de eventos señal", N_events_sig)
 
 # Leer el CSV
 df = pd.read_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_10-50_22-30_Sorted.csv')
@@ -109,7 +83,7 @@ window_ns = 100  # tamaño de la máscara temporal
 hits_count_dict = {}
 
 for event_number in neutron_dict:
-    event_hits = times_branch_sorted_TOF[event_number]  # lista de tiempos del evento
+    event_hits = times_branch_filtered[event_number]  # lista de tiempos del evento
 
     hits_count_dict[event_number] = {}
 
@@ -132,7 +106,7 @@ for event_dict in hits_count_dict.values():
 hits_count_dict_sig = {}
 
 for event_number in neutron_dict_sig:
-    event_hits = times_branch_sorted_TOF_sig[event_number]  # lista de tiempos del evento
+    event_hits = times_branch_filtered_sig[event_number]  # lista de tiempos del evento
 
     hits_count_dict_sig[event_number] = {}
 
@@ -152,7 +126,7 @@ for event_dict in hits_count_dict_sig.values():
     for n_hits in event_dict.values():
         all_n_hits_sig.append(n_hits)
 
-hist, bins_edges = np.histogram(all_n_hits, bins=50, range=(0, 100))
+hist, bins_edges = np.histogram(all_n_hits, bins=50, range=(0, 200))
 hist_sig, _ = np.histogram(all_n_hits_sig, bins = bins_edges)
 
 
@@ -164,7 +138,7 @@ plt.xlabel('Number of hits in prompt window')
 plt.ylabel('Prompt candidates')
 plt.legend()
 plt.title('Histogram of n_hits per prompt window')
-plt.savefig('Plots/nHitsDistribution_SigBkg_10-50_Sorted.png')
+plt.savefig('Plots/nHitsDistribution_SigBkg_100-300.png')
 
 fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]})
 
@@ -185,13 +159,11 @@ ratio = np.divide(
 axs[1].step(bins_edges[:-1], ratio, linewidth = 1, where='post', color='green', label='Signal / Background')
 axs[1].set_xlabel("Number of hits in prompt window")
 axs[1].set_ylabel("S/B ratio")
-axs[1].legend()
 plt.tight_layout()
-plt.savefig('Plots/nHitsDistribution_SigBkg_10-50_Ratio.png')
+plt.savefig('Plots/nHitsDistribution_SigBkg_100-300_Ratio.png')
 
-
-"""###################################################################
-
+###################################################################
+"""
 t_rms_list = []
 
 # Loop over events
