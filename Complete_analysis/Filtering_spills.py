@@ -124,3 +124,19 @@ print("Total number of elements in threshold_times for bkg:", total_elements, ma
 
 total_elements = sum(len(v) for v in threshold_times_sig.values())
 print("Total number of elements in threshold_times for signal:", total_elements, max(event_number_branch_sig), total_elements/max(event_number_branch_sig))
+
+
+def a_array_plano_y_indices(lista_arrays):
+    plano = np.concatenate(lista_arrays)
+    indices = np.cumsum([0] + [len(arr) for arr in lista_arrays])
+    return plano, indices
+
+valores, indices = a_array_plano_y_indices(times_branch_modified)
+
+with open('Filtered_data/datos_filtrados.pkl', 'wb') as f:
+    pickle.dump((valores, indices), f)
+
+valores_sig, indices_sig = a_array_plano_y_indices(times_branch_modified_sig)
+
+with open('Filtered_data/datos_filtrados_sig.pkl', 'wb') as f:
+    pickle.dump((valores_sig, indices_sig), f)

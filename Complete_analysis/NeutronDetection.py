@@ -318,7 +318,7 @@ print("Delta T calculado y gráfico guardado.")"""
 print("Guardando candidatos a neutrones en archivos CSV...")
 
 bordes = np.cumsum([0] + list(dir_events.values()))
-bordes_sig = np.cumsum([0] + list(dir_events.values()))
+bordes_sig = np.cumsum([0] + list(dir_events_sig.values()))
 
 def get_partition_and_local_event(event_number, bordes):
     for i in range(len(bordes)-1):
@@ -346,7 +346,7 @@ neutron_candidates_sig = []
 for event_number, times in neutron_dict_sig.items():
     for start_time, neutron_times in times.items():
         for neutron_time in neutron_times:
-            partition, event_number_partition = get_partition_and_local_event(event_number, bordes)
+            partition, event_number_partition = get_partition_and_local_event(event_number, bordes_sig)
             neutron_candidates_sig.append({
                 'partition': partition, 
                 'event_number_partition': event_number_partition,
@@ -357,8 +357,8 @@ for event_number, times in neutron_dict_sig.items():
             
 df_neutron_candidates = pd.DataFrame(neutron_candidates)
 df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
-df_neutron_candidates.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_100-300_22-30_TestPartition.csv', index=False)
-df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_sig_100-300_22-30_TestPartition.csv', index=False)
+df_neutron_candidates.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_100-300_22-30_Sorted.csv', index=False)
+df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_sig_100-300_22-30_Sorted.csv', index=False)
 
 print("Archivos CSV guardados.")
 print("Ejecución finalizada con éxito.")

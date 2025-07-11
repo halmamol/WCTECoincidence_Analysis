@@ -374,8 +374,6 @@ def neutron_detection(event_branch, times_branch_event_arg, threshold_times, win
 
 def multiple_partition(root_files):
 
-    root_files_sorted = sorted(root_files, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
-
     times_branch_sorted = []
     times_branch_sorted_TOF = []
     charge_branch_sorted = []
@@ -386,7 +384,7 @@ def multiple_partition(root_files):
     # Contador global de eventos
     event_offset = 0
 
-    for file_path in root_files_sorted:
+    for file_path in root_files:
         print(f"Procesando archivo: {file_path}")
         file = uproot.open(file_path)
         tree = file["WCTEReadoutWindows"]
