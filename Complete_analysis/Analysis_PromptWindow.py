@@ -81,16 +81,41 @@ all_n_hits_sig = []
 for nHits_list in nHitsDistribution_dict_sig.values():
     all_n_hits_sig.extend(nHits_list)
 
-hist, bins_edges = np.histogram(all_n_hits, bins=100, range=(0, 300))
+hist, bins_edges = np.histogram(all_n_hits, bins=20, range=(0, 100))
 hist_sig, _ = np.histogram(all_n_hits_sig, bins = bins_edges)
 
-plt.figure()
+"""plt.figure()
 plt.step(bins_edges[:-1], hist, where='post', linewidth=1, color='red', label='Background')
 plt.step(bins_edges[:-1], hist_sig * N_events / N_events_sig, where='post', linewidth=1, color='blue', label = 'Data')
 plt.xlabel('Number of hits')
 plt.ylabel('Windows')
 plt.legend()
 plt.title(f'Histogram nHits per {window_size} ns window')
-plt.savefig(f"nHitsDistribution_window{window_size}.png")
+"""
 
-print("Figura guardada")
+np.savetxt(f'Plots/nHitsDistribution/csv/all_n_hits_window{window_size}_10-300.csv', all_n_hits, delimiter=',', fmt='%d')
+np.savetxt(f'Plots/nHitsDistribution/csv/all_n_hits_window{window_size}_sig_10-300.csv', all_n_hits_sig, delimiter=',', fmt='%d')
+
+"""fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]})
+
+# Top plot: Background and Signal
+axs[0].step(bins_edges[:-1], hist, where='post', linewidth=1, color='red', label='Background')
+axs[0].step(bins_edges[:-1], hist_sig * N_events / N_events_sig, where='post', linewidth=1, color='blue', label = 'Data')
+axs[0].set_ylabel('Windows')
+axs[0].set_xlabel('Number of hits')
+axs[0].set_title(f'Histogram nHits per {window_size} ns window')
+axs[0].legend()
+
+# Bottom plot: Signal/Background Ratio
+ratio = np.divide(
+    hist_sig * N_events / N_events_sig,
+    hist,
+    out=np.full_like(hist, 0, dtype=float),
+    where=hist > 0)
+axs[1].step(bins_edges[:-1], ratio, linewidth = 1, where='post', color='green', label='Signal / Background')
+axs[1].set_xlabel("Number of hits")
+axs[1].set_ylabel("S/B ratio")
+plt.tight_layout()
+plt.savefig(f'Plots/nHitsDistribution/nHitsDistribution_window{window_size}_Ratio.png')
+
+print("Figura guardada")"""

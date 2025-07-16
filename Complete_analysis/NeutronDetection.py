@@ -18,6 +18,22 @@ rcParams['font.family'] = 'STIXGeneral'
 rcParams['figure.figsize'] = [10, 8]
 rcParams['font.size'] = 18
 
+# Crear el parser
+parser = argparse.ArgumentParser(description="Window size")
+
+# Agregar argumento opcional con valor por defecto
+parser.add_argument(
+    "--window_size",
+    type = int, 
+    help="Window size neutron",
+    default=100
+)
+
+# Parsear argumentos
+args = parser.parse_args()
+window_size_neutron = args.window_size
+print("Analizando window size", window_size_neutron)
+
 num_entries_list = np.loadtxt("Filtered_data/num_entries_list_bkg.csv", delimiter=",", dtype=int)
 num_entries_list_sig = np.loadtxt("Filtered_data/num_entries_list_sig.csv", delimiter=",", dtype=int)
 
@@ -42,16 +58,16 @@ event_number_branch_sig = np.arange(0, N_events_sig, 1)
 # Prompt candidates detection ###########################################################################################################
 
 print("Buscando candidatos prompt...")
-threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 500, 200, 100, 300)
-threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 500, 200, 100, 300)
+threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 100, 200, 10, 50)
+threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 100, 200, 10, 50)
 print("Candidatos prompt encontrados.")
 
 # Neutron detection ###########################################################################################################
 
 print("Detectando neutrones en fondo...")
-neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, 100, 22, threshold_sup=30, window_prompt=500)
+neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, window_size_neutron, 15, threshold_sup=21, window_prompt=100)
 print("Detectando neutrones en señal...")
-neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, 100, 22, threshold_sup=30, window_prompt=500)
+neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, window_size_neutron, 15, threshold_sup=21, window_prompt=100)
 
 print("Prompt candidates background", sum(len(v) for v in threshold_times_prompt.values()))
 print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
@@ -64,18 +80,18 @@ print("Neutron candidates signal", sum(len(v) for v in neutron_dict_sig.values()
 
 print("Guardando candidatos a neutrones en archivos CSV...")
 
-bordes = np.cumsum([0] + list(num_entries_list))
-bordes_sig = np.cumsum([0] + list(num_entries_list_sig))
+df = pd.read_csv('Filtered_data/TestPartition.csv')
+df_sig = pd.read_csv('Filtered_data/TestPartition_sig.csv')
 
 neutron_candidates = []
 for event_number, times in neutron_dict.items():
     for start_time, neutron_times in times.items():
         for neutron_time in neutron_times:
-            partition, event_number_partition = functions_analysis.get_partition_and_local_event(event_number, bordes)
+            partition, event_number_partition = functions_analysis.get_partition_info(event_number, df)
             neutron_candidates.append({
                 'partition': partition, 
                 'event_number_partition': event_number_partition,
-                'event_number_total': event_number,
+                'event_number': event_number,
                 'start_time': start_time,
                 'neutron_time': neutron_time      
             })
@@ -84,7 +100,7 @@ neutron_candidates_sig = []
 for event_number, times in neutron_dict_sig.items():
     for start_time, neutron_times in times.items():
         for neutron_time in neutron_times:
-            partition, event_number_partition = functions_analysis.get_partition_and_local_event(event_number, bordes_sig)
+            partition, event_number_partition = functions_analysis.get_partition_info(event_number, df_sig)
             neutron_candidates_sig.append({
                 'partition': partition, 
                 'event_number_partition': event_number_partition,
@@ -95,8 +111,8 @@ for event_number, times in neutron_dict_sig.items():
             
 df_neutron_candidates = pd.DataFrame(neutron_candidates)
 df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
-df_neutron_candidates.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_100-300_22-30_TestPartition.csv', index=False)
-df_neutron_candidates_sig.to_csv('/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/neutron_candidates_sig_100-300_22-30_TestPartition.csv', index=False)
+df_neutron_candidates.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/Tests_WindowSize/neutron_candidates_10-50_15-21_{window_size_neutron}.csv', index=False)
+df_neutron_candidates_sig.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/Neutron_candidates/Tests_WindowSize/neutron_candidates_sig_10-50_15-21_{window_size_neutron}.csv', index=False)
 
 print("Archivos CSV guardados.")
 print("Ejecución finalizada con éxito.")
