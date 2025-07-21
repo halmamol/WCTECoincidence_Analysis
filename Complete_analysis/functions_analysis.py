@@ -46,7 +46,6 @@ def get_partition_and_local_event(event_number, bordes):
     return -1, -1  # Si no encuentra
 
 
-
 # Function to look up partition info
 def get_partition_info(event_number, df):
     row = df[df['event_number'] == event_number]
@@ -82,10 +81,20 @@ def deltaT_calculation(csv_file):
     for event_number in neutron_dict:
         for start_time in neutron_dict[event_number]:
             neutron_times = neutron_dict[event_number][start_time]
-            #deltaT.append(min(neutron_times) - start_time)
-            deltaT.extend([nt - start_time for nt in neutron_times])
+            deltaT.append(min(neutron_times) - start_time)
+            #deltaT.extend([nt - start_time for nt in neutron_times])
 
     return deltaT
+
+def time_RMS_fun_time(times_event, t_in, window):
+
+    mask = (times_event >= t_in) & (times_event < t_in + window)
+    times_bin = times_event[mask]
+    mean_t = times_bin.mean()
+    RMS = np.sqrt(np.mean((times_bin - mean_t) ** 2))
+    
+    return RMS
+
 
 if __name__ == "__main__":
 

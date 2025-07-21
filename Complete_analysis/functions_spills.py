@@ -180,12 +180,12 @@ def time_RMS_fun(times_event, window):
         mask = (times_event >= t_in) & (times_event < t_in + window)
         times_bin = times_event[mask]
 
-        i = np.searchsorted(times_event, t_in + window, side='left')
-
         N = len(times_bin)
         if N == 0 or N==1:  #salen t_RMS bajos pero es mentira, no tiene ningun significado la rms de un unico valor, los evito
-            RMS_list.append(np.nan)  
+            i+=1  
             continue
+
+        i = np.searchsorted(times_event, t_in + window, side='left')
 
         mean_t = times_bin.mean()
         RMS = np.sqrt(np.mean((times_bin - mean_t) ** 2))
@@ -297,7 +297,7 @@ def counting_nHits_window(event_number_branch, times_branch, bin_window):
 
 def prompt_candidates(event_branch, times_branch_arg, window_sliding, window_clean, threshold_inf, threshold_sup):
 
-    def prompt_candidates_event(event, times_branch_event_arg, window_sliding, window_clean, threshold_inf, threshold_sup):
+    def prompt_candidates_event(times_branch_event_arg, window_sliding, window_clean, threshold_inf, threshold_sup):
         valid_thresholds= []
         threshold_list, _ = spill_nHitsTT(times_branch_event_arg, threshold_inf, window_sliding, 0, threshold_sup = threshold_sup)
 
@@ -328,7 +328,7 @@ def prompt_candidates(event_branch, times_branch_arg, window_sliding, window_cle
     for event in event_branch:
         if event%1000 == 0:
             print(f"Searching prompt candidates on event {event}...")
-        threshold_times_event = prompt_candidates_event(event, times_branch_arg[event], window_sliding, window_clean, threshold_inf, threshold_sup)
+        threshold_times_event = prompt_candidates_event(times_branch_arg[event], window_sliding, window_clean, threshold_inf, threshold_sup)
         
         if len(threshold_times_event)!=0:
             theshold_times[event] = threshold_times_event
