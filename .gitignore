@@ -29,3 +29,6 @@ venv_scratch
 *.out
 *.slurm
 *.pkl
+miniconda3/
+bonsai_reco/
+WCSim/

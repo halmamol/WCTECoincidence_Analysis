@@ -55,32 +55,32 @@ event_number_branch_sig = np.arange(0, N_events_sig, 1)
 # Prompt candidates detection ###########################################################################################################
 
 print("Buscando candidatos prompt...")
-threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 1000, 200, 150, 300)
+threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 1500, 200, 100, 300)
 
 for event in threshold_times_prompt:
     t_in_list = threshold_times_prompt[event]
     threshold_times_prompt[event] = [
         t_in for t_in in t_in_list
-        if 100 <= functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, 1000) <= 300]
+        if 200 <= functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, 1500) <= 450]
 
 print("Candidatos prompt encontrados en bkg run.")
 
-threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 1000, 200, 150, 300)
+threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 1500, 200, 100, 300)
 
 for event in threshold_times_prompt_sig:
     t_in_list = threshold_times_prompt_sig[event]
     threshold_times_prompt_sig[event] = [
         t_in for t_in in t_in_list
-        if 100 <= functions_analysis.time_RMS_fun_time(times_branch_filtered_sig[event], t_in, 1000) <= 300]
+        if 200 <= functions_analysis.time_RMS_fun_time(times_branch_filtered_sig[event], t_in, 1500) <= 450]
 
 print("Candidatos prompt encontrados en data run.")
 
 # Neutron detection ###########################################################################################################
 
 print("Detectando neutrones en fondo...")
-neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, window_size_neutron, 22, threshold_sup=30, window_prompt=1000)
+neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, window_size_neutron, 22, threshold_sup=30, window_prompt=1500)
 print("Detectando neutrones en señal...")
-neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, window_size_neutron, 22, threshold_sup=30, window_prompt=1000)
+neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, window_size_neutron, 22, threshold_sup=30, window_prompt=1500)
 
 print("Prompt candidates background", sum(len(v) for v in threshold_times_prompt.values()))
 print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
@@ -124,8 +124,8 @@ for event_number, times in neutron_dict_sig.items():
             
 df_neutron_candidates = pd.DataFrame(neutron_candidates)
 df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
-df_neutron_candidates.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/tRMS_Condition/neutron_candidates_150-300_22-30_RMSlarge.csv', index=False)
-df_neutron_candidates_sig.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/tRMS_Condition/neutron_candidates_sig_150-300_22-30_RMSlarge.csv', index=False)
+df_neutron_candidates.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/tRMS_Condition/neutron_candidates_100-300_22-30_1500_200-450.csv', index=False)
+df_neutron_candidates_sig.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/tRMS_Condition/neutron_candidates_sig_100-300_22-30_1500_200-450.csv', index=False)
 
 print("Archivos CSV guardados.")
 print("Ejecución finalizada con éxito.")
