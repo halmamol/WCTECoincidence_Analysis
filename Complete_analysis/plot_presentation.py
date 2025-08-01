@@ -81,7 +81,7 @@ hist_in_sig, _ = np.histogram(nDetections_event_in_sig, bins=bin_edges)  # usa l
 
 hist_filtered, _ = np.histogram(nDetections_event_fin, bins = bin_edges)
 hist_filtered_sig, _ = np.histogram(nDetections_event_fin_sig, bins = bin_edges)
-"""
+
 plt.figure(facecolor='white')
 plt.step(bin_edges[:-1], hist_in_sig *N_events/ N_events_sig, where='post', color='navy', linestyle='-', linewidth=1.5, label='Data')
 plt.step(bin_edges[:-1], hist_in, where='post', color='crimson', linewidth=1.5, linestyle= '--', label='Background')
@@ -91,7 +91,8 @@ plt.ylabel('Number of Events')
 plt.title('Histogram hits/event')
 plt.tight_layout()
 plt.xlim(0, 4000)
-plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Initial_Hist_hitsEvent_PG_2.png")"""
+plt.yscale('log')
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Initial_Hist_hitsEvent_log.png")
 
 
 plt.figure(facecolor='white')
@@ -105,4 +106,5 @@ plt.ylabel('Number of Events')
 plt.title('Histograms Before and After Filtering')
 plt.tight_layout()
 plt.xlim(0, 4000)
-plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Filtering_PG_3.png")
+plt.yscale('log')
+plt.savefig("/scratch/cgarcia_2002/Complete_analysis/Plots/Comparision_SigBkg_Filtering_log.png")

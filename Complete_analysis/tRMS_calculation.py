@@ -29,7 +29,7 @@ parser.add_argument(
     "--window_size",
     type = int, 
     help="Window size to analyse RMS distribution",
-    default=100
+    default=1500
 )
 
 # Parsear argumentos
@@ -59,18 +59,26 @@ print("Numero de eventos señal", N_events_sig)
 print("Procesando tRMS para ventanas entre 50-300 hits")
 
 t_RMS_list = []
+nHits_list = []
 for event in tqdm(np.arange(0, N_events, 1), desc="Procesando fondo"):
-    threshold_times_list, _ = functions_analysis.count_nHits(times_branch_filtered[event], window, 50, 300)
+    times_branch_event = times_branch_filtered[event]
+    threshold_times_list, _ = functions_analysis.count_nHits(times_branch_event, window, 50, 1000)
 
     for t_in in threshold_times_list:
-        t_RMS_list.append(functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, window))
+        t_RMS_list.append(functions_analysis.time_RMS_fun_time(times_branch_event, t_in, window))
+        mask = (times_branch_event >= t_in) & (times_branch_event < t_in + window)
+        nHits_list.append(mask.sum())
 
 t_RMS_list_sig = []
+nHits_list_sig = []
 for event in tqdm(np.arange(0, N_events_sig, 1), desc="Procesando señal"):
-    threshold_times_list, _ = functions_analysis.count_nHits(times_branch_filtered_sig[event], window, 50, 300)
+    times_branch_event = times_branch_filtered_sig[event]
+    threshold_times_list, _ = functions_analysis.count_nHits(times_branch_event, window, 50, 1000)
 
     for t_in in threshold_times_list:
-        t_RMS_list_sig.append(functions_analysis.time_RMS_fun_time(times_branch_filtered_sig[event], t_in, window))
+        t_RMS_list_sig.append(functions_analysis.time_RMS_fun_time(times_branch_event, t_in, window))
+        mask = (times_branch_event >= t_in) & (times_branch_event < t_in + window)
+        nHits_list_sig.append(mask.sum())
 
 
 """t_RMS_list = np.concatenate([
@@ -87,5 +95,13 @@ t_RMS_list_sig = np.concatenate([
 #np.savetxt(f'csv_saveData/tRMS/tRMS_{window}nsWdw_sig_sup1.csv', t_RMS_list_sig[~np.isnan(t_RMS_list_sig)], delimiter=',', fmt='%d')
 
 
-np.savetxt(f'csv_saveData/tRMS/tRMS_{window}nsWdw_50-300.csv', t_RMS_list, delimiter=',', fmt='%d')
+"""np.savetxt(f'csv_saveData/tRMS/tRMS_{window}nsWdw_50-300.csv', t_RMS_list, delimiter=',', fmt='%d')
 np.savetxt(f'csv_saveData/tRMS/tRMS_{window}nsWdw_sig_50-300.csv', t_RMS_list_sig, delimiter=',', fmt='%d')
+"""
+
+
+with open(f'csv_saveData/tRMS/tRMS_nHits_{window}nsWdw_50-1000.pkl', 'wb') as f:
+    pickle.dump((t_RMS_list, nHits_list), f)
+
+with open(f'csv_saveData/tRMS/tRMS_nHits_{window}nsWdw_sig_50-1000.pkl', 'wb') as f:
+    pickle.dump((t_RMS_list_sig, nHits_list_sig), f)

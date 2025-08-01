@@ -31,9 +31,10 @@ if partition == "all":
     # Background data download ###################################################################################
 
     print("Cargando datos de bkg...")
-    root_dir_bkg = "/data/cgarcia_2002/WCTE/data/2384_calib_time/"
+    root_dir_bkg = "/data/cgarcia_2002/WCTE/data/1766_calib_time/"
     root_files_bkg = sorted(glob.glob(os.path.join(root_dir_bkg, "*.root")))
     root_files_bkg = sorted(root_files_bkg, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
+    root_files_bkg = root_files_bkg[:-1]
 
     print(f"Found {len(root_files_bkg)} background ROOT files.")
 
@@ -44,7 +45,7 @@ if partition == "all":
     
     #Signal data download #############################################################################################
 
-    print("Cargando datos de signal...")
+    """print("Cargando datos de signal...")
     root_dir_sig = "/data/cgarcia_2002/WCTE/data/2385_calib_time/"
     root_files_sig = sorted(glob.glob(os.path.join(root_dir_sig, "*.root")))
     root_files_sig = sorted(root_files_sig, key=lambda file_path: int(file_path.split("P")[-1].split(".")[0]))
@@ -54,7 +55,7 @@ if partition == "all":
     times_branch_sorted_sig, times_branch_sorted_TOF_sig, charge_branch_sorted_sig, mpmt_id_branch_sorted_sig, event_number_branch_sig, _ = functions_spills.multiple_partition(root_files_sig)
 
     print("Datos de signal cargados.")
-    N_events_sig = max(event_number_branch_sig) + 1
+    N_events_sig = max(event_number_branch_sig) + 1"""
 
 else:
     print(f"Analysing partition: {partition}")
@@ -80,17 +81,17 @@ else:
     N_events_sig = tree_sig.num_entries
 
 print(f"Número total de eventos en background: {N_events}")
-print(f"Número total de eventos en signal: {N_events_sig}")
+#print(f"Número total de eventos en signal: {N_events_sig}")
 
 # Filter spills using nHits threshold ###################################################################################
 
 print("Aplicando filtro por nHits para fondo...")
 times_branch_modified, threshold_times, deleted_index_dict = functions_spills.repeat_spills_nHits(event_number_branch, times_branch_sorted_TOF, 300, 5000, 6000)
-print("Aplicando filtro por nHits para señal...")
-times_branch_modified_sig, threshold_times_sig, deleted_index_dict_sig = functions_spills.repeat_spills_nHits(event_number_branch_sig, times_branch_sorted_TOF_sig, 300, 5000, 6000)
+#print("Aplicando filtro por nHits para señal...")
+#times_branch_modified_sig, threshold_times_sig, deleted_index_dict_sig = functions_spills.repeat_spills_nHits(event_number_branch_sig, times_branch_sorted_TOF_sig, 300, 5000, 6000)
 
-charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_sorted, deleted_index_dict)
-charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_sorted_sig, deleted_index_dict_sig)
+#charge_branch_filtered = functions_spills.delete_indices_list(charge_branch_sorted, deleted_index_dict)
+#charge_branch_filtered_sig = functions_spills.delete_indices_list(charge_branch_sorted_sig, deleted_index_dict_sig)
 print("Filtros por nHits aplicados.")
 
 #Filter spills using charge threshold #############################################################################################
@@ -106,11 +107,11 @@ print("Filtros por carga aplicados.")
 import pickle
 
 # Guardar
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_BKG.pkl', 'wb') as f:
+with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_BKG_1766.pkl', 'wb') as f:
     pickle.dump(deleted_index_dict, f)
 
-with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_SIG.pkl', 'wb') as f:
-    pickle.dump(deleted_index_dict_sig, f)
+#with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_nHits_SIG.pkl', 'wb') as f:
+#    pickle.dump(deleted_index_dict_sig, f)
 
 """with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices_Charge_BKG.pkl', 'wb') as f:
     pickle.dump(deleted_indices, f)
@@ -122,8 +123,8 @@ with open('/scratch/cgarcia_2002/Complete_analysis/Filtered_data/deleted_indices
 total_elements = sum(len(v) for v in threshold_times.values())
 print("Total number of elements in threshold_times for bkg:", total_elements, max(event_number_branch), total_elements/max(event_number_branch))
 
-total_elements = sum(len(v) for v in threshold_times_sig.values())
-print("Total number of elements in threshold_times for signal:", total_elements, max(event_number_branch_sig), total_elements/max(event_number_branch_sig))
+#total_elements = sum(len(v) for v in threshold_times_sig.values())
+#print("Total number of elements in threshold_times for signal:", total_elements, max(event_number_branch_sig), total_elements/max(event_number_branch_sig))
 
 
 def a_array_plano_y_indices(lista_arrays):
@@ -133,10 +134,10 @@ def a_array_plano_y_indices(lista_arrays):
 
 valores, indices = a_array_plano_y_indices(times_branch_modified)
 
-with open('Filtered_data/datos_filtrados.pkl', 'wb') as f:
+with open('Filtered_data/datos_filtrados_1766.pkl', 'wb') as f:
     pickle.dump((valores, indices), f)
 
-valores_sig, indices_sig = a_array_plano_y_indices(times_branch_modified_sig)
+#valores_sig, indices_sig = a_array_plano_y_indices(times_branch_modified_sig)
 
-with open('Filtered_data/datos_filtrados_sig.pkl', 'wb') as f:
-    pickle.dump((valores_sig, indices_sig), f)
+#with open('Filtered_data/datos_filtrados_sig.pkl', 'wb') as f:
+#    pickle.dump((valores_sig, indices_sig), f)

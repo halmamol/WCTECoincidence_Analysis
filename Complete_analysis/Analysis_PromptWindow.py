@@ -93,8 +93,8 @@ plt.legend()
 plt.title(f'Histogram nHits per {window_size} ns window')
 """
 
-np.savetxt(f'Plots/nHitsDistribution/csv/all_n_hits_window{window_size}_10-300.csv', all_n_hits, delimiter=',', fmt='%d')
-np.savetxt(f'Plots/nHitsDistribution/csv/all_n_hits_window{window_size}_sig_10-300.csv', all_n_hits_sig, delimiter=',', fmt='%d')
+np.savetxt(f'Plots/nHitsDistribution/csv_saveData/nHitsDistribution/all_n_hits_window{window_size}_10-300.csv', all_n_hits, delimiter=',', fmt='%d')
+np.savetxt(f'Plots/nHitsDistribution/csv_saveData/nHitsDistribution/all_n_hits_window{window_size}_sig_10-300.csv', all_n_hits_sig, delimiter=',', fmt='%d')
 
 """fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [3, 1]})
 
