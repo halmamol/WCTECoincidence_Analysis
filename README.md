@@ -16,5 +16,3 @@ Important directory Complete_Analysis. The rest were initial tests where i was o
 
 *functions_spills.py: should include all the functions for filtering, in reality its all the functions I created in a first period of time
 *functions_analysis.py: should include all the functions realted to the search of prompt-neutron candidate. In reality its all the functions I created in a second period of time
-
-enjoy my code. sry for all the mess. XOXO 
