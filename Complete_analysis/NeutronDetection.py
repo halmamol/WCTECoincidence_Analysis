@@ -29,106 +29,200 @@ parser.add_argument(
     default=100
 )
 
-# Parsear argumentos
-args = parser.parse_args()
-window_size_neutron = args.window_size
-print("Analizando window size", window_size_neutron)
+# Arguments for Analysis 
+run_number = "2384"  # Run number
+output_path = "/scratch/halmazan/WCTE/files/data/"
 
-with open('Filtered_data/datos_filtrados.pkl', 'rb') as f:
+prompt_window = 1500  # Window for prompt candidates
+prompt_dead_time = 200  # Death time for prompt candidates
+prompt_t_rms_min = 200
+prompt_t_rms_max = 400
+prompt_nhits_min = 150
+prompt_nhits_max = 300
+coincidence_window = 150000  # Window for coincidence search
+delayed_window = 100  # Window for delayed candidates
+delayed_nhits_min = 5  # Minimum number of hits for delayed candidates
+delayed_nhits_max = 50  # Maximum number of hits for delayed candidates
+
+print("Opening: ", f'{output_path}filtered_files/filtered_file_{run_number}.pkl')
+print("Output saved in: ", f'{output_path}AmBeCandidates/neutron_candidates_{run_number}.csv')
+
+with open(f'{output_path}filtered_files/filtered_file_{run_number}.pkl', 'rb') as f:
     valores_read, indices_read = pickle.load(f)
 
-with open('Filtered_data/datos_filtrados_sig.pkl', 'rb') as f:
-    valores_read_sig, indices_read_sig = pickle.load(f)
+#with open('Filtered_data/datos_filtrados_sig.pkl', 'rb') as f:
+#    valores_read_sig, indices_read_sig = pickle.load(f)
 
 times_branch_filtered = functions_analysis.a_lista_de_arrays(valores_read, indices_read)
-times_branch_filtered_sig = functions_analysis.a_lista_de_arrays(valores_read_sig, indices_read_sig)
+#times_branch_filtered_sig = functions_analysis.a_lista_de_arrays(valores_read_sig, indices_read_sig)
 
-print("Datos filtrados descargados")
+print("Filtered data loaded.")
 N_events = len(times_branch_filtered)
-N_events_sig = len(times_branch_filtered_sig)
+#N_events_sig = len(times_branch_filtered_sig)
 
-print("Numero de eventos bkg", N_events)
-print("Numero de eventos señal", N_events_sig)
+print(f"Number of events in run {run_number}", N_events)
+#print("Numero de eventos señal", N_events_sig)
 
 event_number_branch = np.arange(0, N_events, 1)
-event_number_branch_sig = np.arange(0, N_events_sig, 1)
+#event_number_branch_sig = np.arange(0, N_events_sig, 1)
 # Prompt candidates detection ###########################################################################################################
 
-print("Buscando candidatos prompt...")
-threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, 1500, 200, 150, 300)
+print("Searching prompt candidate events...")
+threshold_times_prompt = functions_spills.prompt_candidates(event_number_branch, times_branch_filtered, prompt_window, prompt_dead_time, prompt_nhits_min, prompt_nhits_max)
+
+#for event in threshold_times_prompt:
+#    t_in_list = threshold_times_prompt[event]
+#    threshold_times_prompt[event] = [
+#        t_in for t_in in t_in_list
+#        if prompt_t_rms_min <= functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, prompt_window) <= prompt_t_rms_max]
+
+#for event in threshold_times_prompt:
+#    t_in_list = threshold_times_prompt[event]  # List of (time_prompt, n_hits)
+#    threshold_times_prompt[event] = [
+#        (t_in, n_hits)
+#        for (t_in, n_hits) in t_in_list
+#        if prompt_t_rms_min <= functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, prompt_window) <= prompt_t_rms_max
+#    ]
 
 for event in threshold_times_prompt:
-    t_in_list = threshold_times_prompt[event]
+    t_in_list = threshold_times_prompt[event]  # List of (time_prompt, n_hits)
     threshold_times_prompt[event] = [
-        t_in for t_in in t_in_list
-        if 200 <= functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, 1500) <= 400]
+        (t_in, n_hits, functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, prompt_window))
+        for (t_in, n_hits) in t_in_list
+        if prompt_t_rms_min <= functions_analysis.time_RMS_fun_time(times_branch_filtered[event], t_in, prompt_window) <= prompt_t_rms_max
+    ]
+print("Prompt candidates found in run.")
 
-print("Candidatos prompt encontrados en bkg run.")
+#threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 1500, 200, 150, 300)
 
-threshold_times_prompt_sig = functions_spills.prompt_candidates(event_number_branch_sig, times_branch_filtered_sig, 1500, 200, 150, 300)
+#for event in threshold_times_prompt_sig:
+#    t_in_list = threshold_times_prompt_sig[event]
+#    threshold_times_prompt_sig[event] = [
+#        t_in for t_in in t_in_list
+#        if 200 <= functions_analysis.time_RMS_fun_time(times_branch_filtered_sig[event], t_in, 1500) <= 400]
 
-for event in threshold_times_prompt_sig:
-    t_in_list = threshold_times_prompt_sig[event]
-    threshold_times_prompt_sig[event] = [
-        t_in for t_in in t_in_list
-        if 200 <= functions_analysis.time_RMS_fun_time(times_branch_filtered_sig[event], t_in, 1500) <= 400]
-
-print("Candidatos prompt encontrados en data run.")
+#print("Candidatos prompt encontrados en data run.")
 
 # Neutron detection ###########################################################################################################
 
-print("Detectando neutrones en fondo...")
-neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, 150000, window_size_neutron, 15, threshold_sup=21, window_prompt=1500)
-print("Detectando neutrones en señal...")
-neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, window_size_neutron, 15, threshold_sup=21, window_prompt=1500)
+print("Searching for neutron events...")
+neutron_dict = functions_spills.neutron_detection(event_number_branch, times_branch_filtered,  threshold_times_prompt, coincidence_window, delayed_window, delayed_nhits_min, delayed_nhits_max, prompt_window)
+#print("Detectando neutrones en señal...")
+#neutron_dict_sig = functions_spills.neutron_detection(event_number_branch_sig, times_branch_filtered_sig,  threshold_times_prompt_sig, 150000, window_size_neutron, 15, threshold_sup=21, window_prompt=1500)
 
-print("Prompt candidates background", sum(len(v) for v in threshold_times_prompt.values()))
-print("Neutron candidates background", sum(len(v) for v in neutron_dict.values()))
+print("Prompt candidates", sum(len(v) for v in threshold_times_prompt.values()))
+print("Neutron candidates", sum(len(v) for v in neutron_dict.values()))
 
-print("Prompt candidates signal", sum(len(v) for v in threshold_times_prompt_sig.values()))
-print("Neutron candidates signal", sum(len(v) for v in neutron_dict_sig.values()))
+#print("Prompt candidates signal", sum(len(v) for v in threshold_times_prompt_sig.values()))
+#print("Neutron candidates signal", sum(len(v) for v in neutron_dict_sig.values()))
 
 
 # Save neutron candidates to CSV files ###########################################################################################################
 
-print("Guardando candidatos a neutrones en archivos CSV...")
+print("Saving candidate neutron events on CSV...")
 
-df = pd.read_csv('csv_saveData/TestPartition.csv')
-df_sig = pd.read_csv('csv_saveData/TestPartition_sig.csv')
+#df = pd.read_csv(f'{output_path}/TestPartition.csv')
+#df_sig = pd.read_csv('csv_saveData/TestPartition_sig.csv')
 
 neutron_candidates = []
-for event_number, times in neutron_dict.items():
-    for start_time, neutron_times in times.items():
-        for neutron_time in neutron_times:
-            partition, event_number_partition = functions_analysis.get_partition_info(event_number, df)
-            neutron_candidates.append({
-                'partition': partition, 
-                'event_number_partition': event_number_partition,
-                'event_number': event_number,
-                'start_time': start_time,
-                'neutron_time': neutron_time      
-            })
+#for event_number, times in neutron_dict.items():
+#    for start_time, neutron_times in times.items():
+#        for neutron_time in neutron_times:
+#            #partition, event_number_partition = functions_analysis.get_partition_info(event_number, df)
+#            neutron_candidates.append({
+#                #'partition': partition, 
+#                #'event_number_partition': event_number_partition,
+#                'event_number': event_number,
+#                'start_time': start_time,
+#                'neutron_time': neutron_time      
+#            })
 
-neutron_candidates_sig = []
-for event_number, times in neutron_dict_sig.items():
-    for start_time, neutron_times in times.items():
-        for neutron_time in neutron_times:
-            partition, event_number_partition = functions_analysis.get_partition_info(event_number, df_sig)
-            neutron_candidates_sig.append({
-                'partition': partition, 
-                'event_number_partition': event_number_partition,
+for event_number, times in neutron_dict.items():
+    #prompt_candidates = threshold_times_prompt.get(event_number, [])  # List of (time_prompt, n_hits)
+    ## Optional: Split prompt_candidates into separate lists if you want
+    #prompt_times = [t for t, n in prompt_candidates]
+    #prompt_nhits = [n for t, n in prompt_candidates]
+    
+    #for start_time, neutron_pairs in times.items():
+    #    prompt_times_py = [float(t) for t in prompt_times]
+    #    prompt_nhits_py = [int(n) for n in prompt_nhits]
+    #    for neutron_time, neutron_nhits in neutron_pairs: 
+    #        neutron_candidates.append({
+    #            'event_number': event_number,
+    #            'prompt_time': start_time,
+    #            'prompt_nhits': float(prompt_nhits_py[0]),      # List of nhits
+    #            'delayed_time': neutron_time,
+    #            'delayed_nhits': neutron_nhits
+    #        })
+    #prompt_candidates = threshold_times_prompt.get(event_number, [])  # List of (time_prompt, n_hits)
+    ##prompt_nhits_map = {float(t): float(n) for t, n in prompt_candidates}
+    #prompt_nhits_map = {float(t): float(n[0]) if isinstance(n, list) else float(n) for t, n in prompt_candidates}
+    #for start_time, neutron_pairs in times.items():
+    #    prompt_nhits_val = prompt_nhits_map.get(float(start_time), None)
+    #    for neutron_time, neutron_nhits in neutron_pairs: 
+    #        neutron_candidates.append({
+    #            'event_number': event_number,
+    #            'prompt_time': float(start_time),
+    #            'prompt_nhits': prompt_nhits_val,
+    #            'delayed_time': float(neutron_time),
+    #            'delayed_nhits': neutron_nhits
+    #        })
+    
+    #prompt_candidates = threshold_times_prompt.get(event_number, [])  # List of (time_prompt, n_hits)
+    #prompt_nhits_map = {float(t): float(n[0]) if isinstance(n, list) else float(n) for t, n in prompt_candidates}
+    #for start_time, neutron_pairs in times.items():
+    #    prompt_nhits_val = prompt_nhits_map.get(float(start_time), None)
+    #    # neutron_pairs is a list of (delayed_time, delayed_nhits)
+    #    for delayed_time, delayed_nhits in neutron_pairs:
+    #        neutron_candidates.append({
+    #            'event_number': event_number,
+    #            'prompt_time': float(start_time),
+    #            'prompt_nhits': prompt_nhits_val,
+    #            'delayed_time': float(delayed_time),
+    #            'delayed_nhits': float(delayed_nhits)
+    #        })
+    
+    prompt_candidates = threshold_times_prompt.get(event_number, [])  # List of (time_prompt, n_hits, prompt_trms)
+    #prompt_nhits_map = {float(t): (float(n), float(trms)) for t, n, trms in prompt_candidates}
+    prompt_nhits_map = {
+    float(t): (
+        float(n[0]) if isinstance(n, list) else float(n),
+        float(trms[0]) if isinstance(trms, list) else float(trms)
+    )
+    for t, n, trms in prompt_candidates
+    }
+    for start_time, neutron_pairs in times.items():
+        prompt_data = prompt_nhits_map.get(float(start_time), (None, None))
+        prompt_nhits_val, prompt_trms_val = prompt_data
+        for delayed_time, delayed_nhits in neutron_pairs:
+            neutron_candidates.append({
                 'event_number': event_number,
-                'start_time': start_time,
-                'neutron_time': neutron_time
+                'prompt_time': float(start_time),
+                'prompt_nhits': prompt_nhits_val,
+                'prompt_trms': prompt_trms_val,
+                'delayed_time': float(delayed_time),
+                'delayed_nhits': float(delayed_nhits) if not isinstance(delayed_nhits, list) else float(delayed_nhits[0])
             })
+#neutron_candidates_sig = []
+#for event_number, times in neutron_dict_sig.items():
+#    for start_time, neutron_times in times.items():
+#        for neutron_time in neutron_times:
+#            partition, event_number_partition = functions_analysis.get_partition_info(event_number, df_sig)
+#            neutron_candidates_sig.append({
+#                'partition': partition, 
+#                'event_number_partition': event_number_partition,
+#                'event_number': event_number,
+#                'start_time': start_time,
+#                'neutron_time': neutron_time
+#            })
             
 df_neutron_candidates = pd.DataFrame(neutron_candidates)
-df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
-df_neutron_candidates.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/neutron_nHitsTest/neutron_candidates_150-300_15-21_200-400.csv', index=False)
-df_neutron_candidates_sig.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/neutron_nHitsTest/neutron_candidates_sig_150-300_15-21_200-400.csv', index=False)
+#df_neutron_candidates_sig = pd.DataFrame(neutron_candidates_sig)
+df_neutron_candidates.to_csv(f'{output_path}/AmBeCandidates/neutron_candidates_{run_number}.csv', index=False)
+#df_neutron_candidates_sig.to_csv(f'/scratch/cgarcia_2002/Complete_analysis/csv_saveData/Neutron_candidates/neutron_nHitsTest/neutron_candidates_sig_150-300_15-21_200-400.csv', index=False)
 
-print("Archivos CSV guardados.")
-print("Ejecución finalizada con éxito.")
+print("CSV files saved.")
+print("End of code.")
 
 #Plot filtered data #################################################################################################
 """

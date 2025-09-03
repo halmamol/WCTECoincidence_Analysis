@@ -1,7 +1,7 @@
 import numpy as np
 import glob
 import os
-import uproot
+#import uproot
 import pandas as pd
 from collections import defaultdict
 
@@ -64,25 +64,24 @@ def deltaT_calculation(csv_file):
 
     # Asegurar tipos consistentes (por si event_number o start_time eran strings o enteros)
     df['event_number'] = df['event_number'].astype(int)
-    df['start_time'] = df['start_time'].astype(float)
+    df['prompt_time'] = df['prompt_time'].astype(float)
 
     # Reconstruir el diccionario anidado
     neutron_dict = defaultdict(lambda: defaultdict(list))
 
     for _, row in df.iterrows():
         event_number = row['event_number']
-        start_time = row['start_time']
-        neutron_time = row['neutron_time']
-        neutron_dict[event_number][start_time].append(neutron_time)
+        start_time = row['prompt_time']
+        delayed_time = row['delayed_time']
+        neutron_dict[event_number][start_time].append(delayed_time)
     # Para neutron_dict
     neutron_dict = {k: dict(v) for k, v in neutron_dict.items()}
     
     deltaT = []
     for event_number in neutron_dict:
         for start_time in neutron_dict[event_number]:
-            neutron_times = neutron_dict[event_number][start_time]
-            deltaT.append(min(neutron_times) - start_time)
-            #deltaT.extend([nt - start_time for nt in neutron_times])
+            delayed_time = neutron_dict[event_number][start_time]
+            deltaT.append(min(delayed_time) - start_time)
 
     return deltaT
 
